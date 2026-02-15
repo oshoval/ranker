@@ -38,25 +38,33 @@ export function UserLogPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [internalCollapsed, setInternalCollapsed] = useState(false);
 
-  const fetchLogs = useCallback(async () => {
-    try {
-      const res = await fetch(LOG_API);
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs ?? []);
-        setTotal(data.total ?? 0);
-        onLogCountChange?.(data.total ?? 0);
+  const fetchLogs = useCallback(
+    async (signal?: { cancelled: boolean }) => {
+      try {
+        const res = await fetch(LOG_API);
+        if (res.ok && !signal?.cancelled) {
+          const data = await res.json();
+          setLogs(data.logs ?? []);
+          setTotal(data.total ?? 0);
+          onLogCountChange?.(data.total ?? 0);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-  }, [onLogCountChange]);
+    },
+    [onLogCountChange]
+  );
 
   useEffect(() => {
     if (open) {
-      void fetchLogs();
-      const id = setInterval(fetchLogs, REFRESH_MS);
-      return () => clearInterval(id);
+      const signal = { cancelled: false };
+      const t = setTimeout(() => fetchLogs(signal), 0);
+      const id = setInterval(() => fetchLogs(signal), REFRESH_MS);
+      return () => {
+        signal.cancelled = true;
+        clearTimeout(t);
+        clearInterval(id);
+      };
     }
   }, [open, fetchLogs]);
 

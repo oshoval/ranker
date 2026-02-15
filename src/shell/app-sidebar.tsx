@@ -35,7 +35,7 @@ export interface AppSidebarProps {
 const SidebarButton = ({
   children,
   label,
-  className,
+  className: _className,
   collapsed,
 }: {
   children: React.ReactNode;

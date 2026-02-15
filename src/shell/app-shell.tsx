@@ -18,22 +18,26 @@ export function AppShell() {
   const [productLogPanelOpen, setProductLogPanelOpen] = useState(false);
   const [userLogErrorCount, setUserLogErrorCount] = useState(0);
 
-  const fetchUserLogCount = async () => {
-    try {
-      const res = await fetch('/api/logs/user');
-      if (res.ok) {
-        const data = await res.json();
-        setUserLogErrorCount(data.total ?? 0);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
   useEffect(() => {
-    void fetchUserLogCount();
-    const id = setInterval(fetchUserLogCount, USER_LOG_POLL_MS);
-    return () => clearInterval(id);
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/logs/user');
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setUserLogErrorCount(data.total ?? 0);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    const t = setTimeout(poll, 0);
+    const id = setInterval(poll, USER_LOG_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {

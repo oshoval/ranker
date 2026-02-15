@@ -70,9 +70,12 @@ export function ProductLogPanel({ open, onClose }: ProductLogPanelProps) {
 
   useEffect(() => {
     if (open) {
-      void fetchLogs();
+      const t = setTimeout(fetchLogs, 0);
       const id = setInterval(fetchLogs, REFRESH_MS);
-      return () => clearInterval(id);
+      return () => {
+        clearTimeout(t);
+        clearInterval(id);
+      };
     }
   }, [open, fetchLogs]);
 
