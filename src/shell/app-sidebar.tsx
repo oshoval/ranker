@@ -3,6 +3,7 @@
 
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import {
   AlertCircle,
   Moon,
@@ -21,6 +22,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+// Stable no-op subscribe for useSyncExternalStore (client vs server detection)
+const emptySubscribe = () => () => {};
 
 export interface AppSidebarProps {
   activeSection: string;
@@ -62,6 +66,11 @@ export function AppSidebar({
   userLogErrorCount = 0,
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   return (
     <aside
@@ -125,7 +134,7 @@ export function AppSidebar({
             )}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? (
+            {mounted && theme === 'dark' ? (
               <Sun className="h-5 w-5 shrink-0" />
             ) : (
               <Moon className="h-5 w-5 shrink-0" />
