@@ -5,3 +5,4 @@
 * [Architecture](architecture/README.md)
   * [Folder Structure](architecture/folder-structure.md)
 * [Features](features/README.md)
+  * [PR Complexity Scoring](features/scoring.md)
