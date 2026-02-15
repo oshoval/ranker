@@ -26,14 +26,27 @@ All jobs must pass for the **CI Pass** gate to succeed. Branch protection requir
 ## Makefile Targets
 
 ```bash
+# Lifecycle
+make install        # Install dependencies
+make dev            # Start dev server (kills stale processes first)
+make fresh          # Clean everything, install deps, start dev server
+make build          # Production build
+make start          # Build + start production server
+make kill           # Kill running Next.js processes
+make clean          # Remove .next and module caches
+
+# Quality
 make lint           # Run ESLint
 make typecheck      # Run TypeScript check
 make test           # Run unit tests
 make e2e            # Run E2E tests
-make build          # Production build
 make license-check  # Verify SPDX headers
-make heal           # Self-healing report
 make prepush        # All pre-push checks (lint + typecheck + test + build + license)
+
+# Self-Healing
+make heal           # Collect warnings/errors, print report
+make heal-cursor    # Run heal report through Cursor agent
+make heal-claude    # Run heal report through Claude Code
 ```
 
 ## Dependabot
