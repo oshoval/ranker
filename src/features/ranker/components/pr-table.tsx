@@ -215,7 +215,7 @@ const PRRow = React.memo(function PRRow({
                 </p>
               )}
               {pr.files.length > 0 && (
-                <p>
+                <div>
                   <span className="font-medium">Files:</span>
                   <ul className="list-inside list-disc mt-1">
                     {pr.files.map((f) => (
@@ -231,7 +231,7 @@ const PRRow = React.memo(function PRRow({
                       </li>
                     ))}
                   </ul>
-                </p>
+                </div>
               )}
             </div>
           </TableCell>
