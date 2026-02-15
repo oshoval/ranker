@@ -1,0 +1,73 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Copyright 2026 Red Hat, Inc. */
+
+@import 'tailwindcss';
+
+@theme {
+  /* GitHub-inspired dark palette */
+  --color-background: #0d1117;
+  --color-foreground: #e6edf3;
+  --color-primary: #58a6ff;
+  --color-primary-foreground: #0d1117;
+  --color-secondary: #161b22;
+  --color-secondary-foreground: #e6edf3;
+  --color-muted: #21262d;
+  --color-muted-foreground: #8b949e;
+  --color-accent: #1f6feb;
+  --color-accent-foreground: #e6edf3;
+  --color-border: #30363d;
+  --color-input: #21262d;
+  --color-ring: #58a6ff;
+  --color-card: #161b22;
+  --color-card-foreground: #e6edf3;
+  --color-destructive: #f85149;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #3fb950;
+  --color-warning: #d29922;
+  --color-info: #58a6ff;
+
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}
+
+/* Light theme overrides */
+[data-theme='light'] {
+  --color-background: #ffffff;
+  --color-foreground: #1f2328;
+  --color-primary: #0969da;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f6f8fa;
+  --color-secondary-foreground: #1f2328;
+  --color-muted: #f6f8fa;
+  --color-muted-foreground: #656d76;
+  --color-accent: #0969da;
+  --color-accent-foreground: #ffffff;
+  --color-border: #d0d7de;
+  --color-input: #f6f8fa;
+  --color-ring: #0969da;
+  --color-card: #ffffff;
+  --color-card-foreground: #1f2328;
+  --color-destructive: #cf222e;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #1a7f37;
+  --color-warning: #9a6700;
+  --color-info: #0969da;
+}
