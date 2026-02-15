@@ -9,16 +9,22 @@ import type { GitHubPR } from '@/shared/types';
 import { handleGetPRs } from '@/features/ranker/api/prs';
 import { getGitHubClient } from '@/shared/github/client';
 import { prCache } from '@/shared/utils/cache';
-import { logProductError, logUserError } from '@/shared/storage/logs';
+import '@/shared/storage/logs';
 
 jest.mock('@/shared/github/client');
 jest.mock('@/shared/utils/cache');
 jest.mock('@/shared/storage/logs');
 
-function createRequest(url: string, clientId?: number): Request {
+function createRequest(
+  url: string,
+  options?: { clientId?: number; realIp?: string }
+): Request {
   const headers: Record<string, string> = {};
-  if (clientId !== undefined) {
-    headers['x-forwarded-for'] = `192.168.1.${clientId}`;
+  if (options?.clientId !== undefined) {
+    headers['x-forwarded-for'] = `192.168.1.${options.clientId}`;
+  }
+  if (options?.realIp) {
+    headers['x-real-ip'] = options.realIp;
   }
   return new Request(url, { headers });
 }
@@ -56,7 +62,7 @@ function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
 describe('handleGetPRs', () => {
   const mockFetchOpenPRs = jest.fn();
   const mockGet = jest.mocked(prCache.get);
-  const mockSet = jest.mocked(prCache.set);
+  const _mockSet = jest.mocked(prCache.set);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -67,10 +73,9 @@ describe('handleGetPRs', () => {
   });
 
   it('returns 400 when owner is missing', async () => {
-    const req = createRequest(
-      'http://localhost:3000/api/prs?repo=validrepo',
-      1
-    );
+    const req = createRequest('http://localhost:3000/api/prs?repo=validrepo', {
+      clientId: 1,
+    });
     const response = await handleGetPRs(req);
     expect(response.status).toBe(400);
     const body = await response.json();
@@ -80,7 +85,7 @@ describe('handleGetPRs', () => {
   it('returns 400 when repo has invalid characters', async () => {
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=repo!invalid',
-      2
+      { clientId: 2 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(400);
@@ -94,7 +99,7 @@ describe('handleGetPRs', () => {
     );
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=repo',
-      3
+      { clientId: 3 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(401);
@@ -106,7 +111,7 @@ describe('handleGetPRs', () => {
     mockFetchOpenPRs.mockRejectedValue(new Error('RATE_LIMITED'));
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=repo',
-      4
+      { clientId: 4 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(429);
@@ -118,7 +123,7 @@ describe('handleGetPRs', () => {
     mockFetchOpenPRs.mockRejectedValue(new Error('REPOSITORY_NOT_FOUND'));
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=nonexistent',
-      5
+      { clientId: 5 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(404);
@@ -130,7 +135,7 @@ describe('handleGetPRs', () => {
     mockFetchOpenPRs.mockRejectedValue(new Error('Something went wrong'));
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=repo',
-      6
+      { clientId: 6 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(500);
@@ -143,7 +148,7 @@ describe('handleGetPRs', () => {
     mockFetchOpenPRs.mockResolvedValue(prs);
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=repo',
-      7
+      { clientId: 7 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(200);
@@ -167,7 +172,7 @@ describe('handleGetPRs', () => {
     mockGet.mockReturnValue(cachedPRs as unknown);
     const req = createRequest(
       'http://localhost:3000/api/prs?owner=test&repo=repo',
-      8
+      { clientId: 8 }
     );
     const response = await handleGetPRs(req);
     expect(response.status).toBe(200);
@@ -176,5 +181,35 @@ describe('handleGetPRs', () => {
     expect(body.total).toBe(1);
     expect(body.owner).toBe('test');
     expect(body.repo).toBe('repo');
+  });
+
+  it('returns 429 when API rate limit exceeded', async () => {
+    const cachedPRs = [makePR({ number: 1 })];
+    mockGet.mockReturnValue(cachedPRs as unknown);
+    const url = 'http://localhost:3000/api/prs?owner=test&repo=repo';
+    const clientId = 90;
+    for (let i = 0; i < 10; i++) {
+      const req = createRequest(url, { clientId });
+      const res = await handleGetPRs(req);
+      expect(res.status).toBe(200);
+    }
+    const req = createRequest(url, { clientId });
+    const res = await handleGetPRs(req);
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body).toEqual({ error: 'Too many requests' });
+  });
+
+  it('uses x-real-ip when x-forwarded-for is absent', async () => {
+    const prs = [makePR({ number: 1 })];
+    mockFetchOpenPRs.mockResolvedValue(prs);
+    const req = new Request(
+      'http://localhost:3000/api/prs?owner=test&repo=repo',
+      {
+        headers: { 'x-real-ip': '10.0.0.5' },
+      }
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(200);
   });
 });
