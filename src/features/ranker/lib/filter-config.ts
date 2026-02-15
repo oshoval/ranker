@@ -22,7 +22,7 @@ export const DEFAULT_FILTER_CONFIG: FilterConfig = {
   excludeDrafts: true,
   excludeApproved: true,
   excludeHold: true,
-  excludeConflicts: true,
-  excludeActiveReviews: true,
+  excludeConflicts: false, // PRs with conflicts still need review; author handles rebase
+  excludeActiveReviews: false, // PRs with pending reviews ARE the triage target
   excludeSkipReview: true,
 };

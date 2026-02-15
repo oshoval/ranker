@@ -181,16 +181,34 @@ describe('filters', () => {
       expect(result.reasons).toContain('hold-label');
     });
 
-    it('filters PR with merge conflicts', () => {
+    it('allows PR with merge conflicts by default (still needs review)', () => {
       const pr = makePR({ mergeable: 'CONFLICTING' });
       const result = filterPR(pr, DEFAULT_FILTER_CONFIG);
+      expect(result.passes).toBe(true);
+    });
+
+    it('filters PR with merge conflicts when excludeConflicts=true', () => {
+      const pr = makePR({ mergeable: 'CONFLICTING' });
+      const result = filterPR(pr, {
+        ...DEFAULT_FILTER_CONFIG,
+        excludeConflicts: true,
+      });
       expect(result.passes).toBe(false);
       expect(result.reasons).toContain('conflicts');
     });
 
-    it('filters PR with active reviewers', () => {
+    it('allows PR with active reviewers by default (triage target)', () => {
       const pr = makePR({ reviewRequests: ['alice'] });
       const result = filterPR(pr, DEFAULT_FILTER_CONFIG);
+      expect(result.passes).toBe(true);
+    });
+
+    it('filters PR with active reviewers when excludeActiveReviews=true', () => {
+      const pr = makePR({ reviewRequests: ['alice'] });
+      const result = filterPR(pr, {
+        ...DEFAULT_FILTER_CONFIG,
+        excludeActiveReviews: true,
+      });
       expect(result.passes).toBe(false);
       expect(result.reasons).toContain('active-reviews');
     });
