@@ -90,9 +90,7 @@ function SortableHeader({
 }: SortableHeaderProps) {
   const isActive = currentSort.field === field;
   const isAsc = currentSort.direction === 'asc';
-  const ariaSort = isActive
-    ? (isAsc ? 'ascending' : 'descending')
-    : undefined;
+  const ariaSort = isActive ? (isAsc ? 'ascending' : 'descending') : undefined;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -179,8 +177,7 @@ const PRRow = React.memo(function PRRow({
         <TableCell>
           <span className="text-green-600 dark:text-green-400">
             +{pr.additions}
-          </span>
-          {' '}
+          </span>{' '}
           <span className="text-red-600 dark:text-red-400">
             -{pr.deletions}
           </span>
@@ -201,21 +198,18 @@ const PRRow = React.memo(function PRRow({
           <TableCell colSpan={7} className="p-4">
             <div className="space-y-2 text-sm">
               <p>
-                <span className="font-medium">Branch:</span>
-                {' '}
-                {pr.headRefName} → {pr.baseRefName}
+                <span className="font-medium">Branch:</span> {pr.headRefName} →{' '}
+                {pr.baseRefName}
               </p>
               {pr.labels.length > 0 && (
                 <p>
-                  <span className="font-medium">Labels:</span>
-                  {' '}
+                  <span className="font-medium">Labels:</span>{' '}
                   {pr.labels.map((l) => l.name).join(', ')}
                 </p>
               )}
               {pr.body && (
                 <p>
-                  <span className="font-medium">Description:</span>
-                  {' '}
+                  <span className="font-medium">Description:</span>{' '}
                   {pr.body.slice(0, 200)}
                   {pr.body.length > 200 ? '…' : ''}
                 </p>
@@ -226,13 +220,10 @@ const PRRow = React.memo(function PRRow({
                   <ul className="list-inside list-disc mt-1">
                     {pr.files.map((f) => (
                       <li key={f.path}>
-                        {f.path}
-                        {' '}
-                        (
+                        {f.path} (
                         <span className="text-green-600 dark:text-green-400">
                           +{f.additions}
-                        </span>
-                        {' '}
+                        </span>{' '}
                         <span className="text-red-600 dark:text-red-400">
                           -{f.deletions}
                         </span>
