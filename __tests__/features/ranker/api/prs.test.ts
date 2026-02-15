@@ -1,0 +1,180 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Red Hat, Inc.
+
+/**
+ * @jest-environment node
+ */
+
+import type { GitHubPR } from '@/shared/types';
+import { handleGetPRs } from '@/features/ranker/api/prs';
+import { getGitHubClient } from '@/shared/github/client';
+import { prCache } from '@/shared/utils/cache';
+import { logProductError, logUserError } from '@/shared/storage/logs';
+
+jest.mock('@/shared/github/client');
+jest.mock('@/shared/utils/cache');
+jest.mock('@/shared/storage/logs');
+
+function createRequest(url: string, clientId?: number): Request {
+  const headers: Record<string, string> = {};
+  if (clientId !== undefined) {
+    headers['x-forwarded-for'] = `192.168.1.${clientId}`;
+  }
+  return new Request(url, { headers });
+}
+
+function makePR(overrides: Partial<GitHubPR> = {}): GitHubPR {
+  return {
+    number: 1,
+    title: 'Test PR',
+    body: '',
+    author: 'test',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+    isDraft: false,
+    mergeable: 'MERGEABLE',
+    headRefName: 'feat/test',
+    baseRefName: 'main',
+    additions: 10,
+    deletions: 5,
+    changedFiles: 1,
+    labels: [],
+    reviews: [],
+    files: [
+      {
+        path: 'src/app.ts',
+        additions: 10,
+        deletions: 5,
+        changeType: 'modified',
+      },
+    ],
+    reviewRequests: [],
+    ...overrides,
+  };
+}
+
+describe('handleGetPRs', () => {
+  const mockFetchOpenPRs = jest.fn();
+  const mockGet = jest.mocked(prCache.get);
+  const mockSet = jest.mocked(prCache.set);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getGitHubClient as jest.Mock).mockReturnValue({
+      fetchOpenPRs: mockFetchOpenPRs,
+    });
+    mockGet.mockReturnValue(undefined);
+  });
+
+  it('returns 400 when owner is missing', async () => {
+    const req = createRequest(
+      'http://localhost:3000/api/prs?repo=validrepo',
+      1
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Invalid owner or repo format' });
+  });
+
+  it('returns 400 when repo has invalid characters', async () => {
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=repo!invalid',
+      2
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Invalid owner or repo format' });
+  });
+
+  it('returns 401 when GitHub token is missing', async () => {
+    mockFetchOpenPRs.mockRejectedValue(
+      new Error('GITHUB_TOKEN environment variable is required')
+    );
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=repo',
+      3
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Authentication required' });
+  });
+
+  it('returns 429 when rate limited', async () => {
+    mockFetchOpenPRs.mockRejectedValue(new Error('RATE_LIMITED'));
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=repo',
+      4
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(429);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'GitHub rate limit exceeded' });
+  });
+
+  it('returns 404 when repo not found', async () => {
+    mockFetchOpenPRs.mockRejectedValue(new Error('REPOSITORY_NOT_FOUND'));
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=nonexistent',
+      5
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Repository not found' });
+  });
+
+  it('returns 500 on unexpected error with no internal details', async () => {
+    mockFetchOpenPRs.mockRejectedValue(new Error('Something went wrong'));
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=repo',
+      6
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body).toEqual({ error: 'Internal server error' });
+  });
+
+  it('returns 200 with scored and filtered PRs on success', async () => {
+    const prs = [makePR({ number: 1 }), makePR({ number: 2 })];
+    mockFetchOpenPRs.mockResolvedValue(prs);
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=repo',
+      7
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty('prs');
+    expect(body).toHaveProperty('total', 2);
+    expect(body).toHaveProperty('filtered');
+    expect(body).toHaveProperty('owner', 'test');
+    expect(body).toHaveProperty('repo', 'repo');
+    expect(body).toHaveProperty('fetchedAt');
+    expect(Array.isArray(body.prs)).toBe(true);
+    expect(body.prs.length).toBeLessThanOrEqual(2);
+    body.prs.forEach((pr: { score: number; scoreBreakdown: unknown }) => {
+      expect(pr).toHaveProperty('score');
+      expect(pr).toHaveProperty('scoreBreakdown');
+    });
+  });
+
+  it('uses cache when available', async () => {
+    const cachedPRs = [makePR({ number: 99 })];
+    mockGet.mockReturnValue(cachedPRs as unknown);
+    const req = createRequest(
+      'http://localhost:3000/api/prs?owner=test&repo=repo',
+      8
+    );
+    const response = await handleGetPRs(req);
+    expect(response.status).toBe(200);
+    expect(mockFetchOpenPRs).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.total).toBe(1);
+    expect(body.owner).toBe('test');
+    expect(body.repo).toBe('repo');
+  });
+});

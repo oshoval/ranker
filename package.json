@@ -11,8 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test": "jest --testPathIgnorePatterns=api && jest __tests__/features/ranker/api --testEnvironment=node",
+    "test:coverage": "jest --testPathIgnorePatterns=api --coverage && jest __tests__/features/ranker/api --testEnvironment=node --coverage",
     "prepare": "husky"
   },
   "dependencies": {
