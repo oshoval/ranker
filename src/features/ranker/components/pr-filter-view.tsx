@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ClickCreatures } from '@/components/click-creatures';
 import { PRTable } from './pr-table';
 import { usePRs } from '../hooks/use-prs';
 import { DEFAULT_FILTER_CONFIG, type FilterConfig } from '../lib/filter-config';
@@ -239,7 +240,9 @@ export function PRFilterView() {
       )}
 
       {/* Repo Input */}
-      <Card>
+      <Card className="relative">
+        {/* Creature overlay – click the card background to summon creatures */}
+        <ClickCreatures />
         <CardHeader>
           <CardTitle className="text-lg">Repository</CardTitle>
         </CardHeader>
