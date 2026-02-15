@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --testPathIgnorePatterns=api/prs && jest __tests__/features/ranker/api --testEnvironment=node",
     "test:coverage": "jest --testPathIgnorePatterns=api/prs --coverage && jest __tests__/features/ranker/api --testEnvironment=node --coverage",
+    "dev:errors": "bash scripts/dev-errors.sh",
     "test:e2e": "playwright test",
     "prepare": "husky"
   },
