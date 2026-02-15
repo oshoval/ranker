@@ -3,6 +3,15 @@
 
 import type { NextConfig } from 'next';
 
+const isDev = process.env.NODE_ENV === 'development';
+
+// In development, Next.js/Turbopack injects inline scripts for HMR that
+// require 'unsafe-inline' and 'unsafe-eval'. In production a nonce-based
+// approach should be used (see GOING_PUBLIC.md).
+const scriptSrc = isDev
+  ? "'self' 'unsafe-inline' 'unsafe-eval'"
+  : "'self' 'unsafe-inline'";
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   async headers() {
@@ -24,8 +33,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value:
-              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com; frame-ancestors 'none';",
+            value: `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com; frame-ancestors 'none';`,
           },
         ],
       },
