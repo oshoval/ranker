@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppSidebar } from '@/shell/app-sidebar';
+import { UserLogPanel } from '@/shell/user-log-panel';
 import { plugins } from '@/features/registry';
 
 const USER_LOG_POLL_MS = 30_000;
@@ -64,7 +65,13 @@ export function AppShell() {
           {ActiveComponent ? <ActiveComponent /> : null}
         </main>
         <div className="flex shrink-0 flex-col border-t border-border bg-card">
-          {/* Log panels rendered by UserLogPanel (9.3) and ProductLogPanel (9.4) */}
+          {userLogPanelOpen && (
+            <UserLogPanel
+              open={userLogPanelOpen}
+              onClose={() => setUserLogPanelOpen(false)}
+              onLogCountChange={setUserLogErrorCount}
+            />
+          )}
         </div>
       </div>
     </div>
