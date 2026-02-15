@@ -95,6 +95,7 @@ export function PRFilterView() {
   const [repo, setRepo] = React.useState('');
   const [recentRepos, setRecentRepos] = React.useState<string[]>([]);
   const [showRecent, setShowRecent] = React.useState(false);
+  const [tokenMissing, setTokenMissing] = React.useState(false);
 
   const [filters, setFilters] = React.useState<FilterConfig>(() => {
     const custom = loadCustomLabels();
@@ -115,6 +116,23 @@ export function PRFilterView() {
 
   React.useEffect(() => {
     setRecentRepos(loadRecentRepos());
+
+    // Check if GITHUB_TOKEN is configured on the server
+    const checkToken = async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const body = await res.json();
+          if (body.githubTokenConfigured === false) {
+            setTokenMissing(true);
+          }
+        }
+      } catch {
+        // ignore -- health check failure is not a token issue
+      }
+    };
+    const t = setTimeout(checkToken, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const { data, error, isLoading, isFetching, refetch } = usePRs({
@@ -199,6 +217,27 @@ export function PRFilterView() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      {/* Token missing warning */}
+      {tokenMissing && (
+        <div className="flex items-start gap-3 rounded-md border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+          <div>
+            <p className="font-medium">GitHub token not configured</p>
+            <p className="mt-1 text-amber-600 dark:text-amber-400">
+              Create a{' '}
+              <code className="rounded bg-amber-500/20 px-1">.env.local</code>{' '}
+              file with your{' '}
+              <code className="rounded bg-amber-500/20 px-1">GITHUB_TOKEN</code>
+              . See{' '}
+              <code className="rounded bg-amber-500/20 px-1">
+                .env.local.example
+              </code>{' '}
+              for the format. Restart the dev server after adding it.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Repo Input */}
       <Card>
         <CardHeader>
