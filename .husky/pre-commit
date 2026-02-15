@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# Secret file detection -- block commits containing sensitive files
+BLOCKED_PATTERNS=".env .env.local .env.production .env.development *.pem *.key *.p12 *.pfx credentials.json"
+
+for pattern in $BLOCKED_PATTERNS; do
+  # Check staged files against pattern
+  MATCHES=$(git diff --cached --name-only | grep -E "^${pattern//\*/.*}$" 2>/dev/null || true)
+  if [ -n "$MATCHES" ]; then
+    echo "ERROR: Attempted to commit sensitive file(s):"
+    echo "$MATCHES"
+    echo ""
+    echo "Remove them from staging with: git reset HEAD <file>"
+    exit 1
+  fi
+done
+
+# Run prettier via lint-staged
+npx lint-staged

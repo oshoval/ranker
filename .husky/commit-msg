@@ -1,0 +1,59 @@
+#!/usr/bin/env sh
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# --- 1. Enforce conventional commit format ---
+FIRST_LINE=$(head -1 "$COMMIT_MSG_FILE")
+
+# Allow merge commits
+if echo "$FIRST_LINE" | grep -qE "^Merge "; then
+  exit 0
+fi
+
+# Conventional commit: type(scope): description  OR  type: description
+if ! echo "$FIRST_LINE" | grep -qE "^(feat|fix|chore|docs|style|refactor|perf|test|ci|build|revert)(\(.+\))?: .+"; then
+  echo "ERROR: Commit message does not follow conventional commit format."
+  echo ""
+  echo "Format: type(scope): description"
+  echo "  or:   type: description"
+  echo ""
+  echo "Allowed types: feat, fix, chore, docs, style, refactor, perf, test, ci, build, revert"
+  echo ""
+  echo "Example: feat(scoring): add weighted heuristic engine"
+  echo "Your message: $FIRST_LINE"
+  exit 1
+fi
+
+# --- 2. Ensure Signed-off-by (DCO) ---
+if ! grep -q "^Signed-off-by:" "$COMMIT_MSG_FILE"; then
+  echo ""
+  echo "WARNING: Adding Signed-off-by line (DCO compliance)."
+  echo "Use 'git commit -s' to include it automatically."
+  echo ""
+  # Get user info from git config
+  USER_NAME=$(git config user.name)
+  USER_EMAIL=$(git config user.email)
+  if [ -n "$USER_NAME" ] && [ -n "$USER_EMAIL" ]; then
+    echo "" >> "$COMMIT_MSG_FILE"
+    echo "Signed-off-by: $USER_NAME <$USER_EMAIL>" >> "$COMMIT_MSG_FILE"
+  else
+    echo "ERROR: Cannot add Signed-off-by -- git user.name or user.email not set."
+    exit 1
+  fi
+fi
+
+# --- 3. Ensure Co-authored-by for AI-assisted commits ---
+if ! grep -q "^Co-authored-by:" "$COMMIT_MSG_FILE"; then
+  # Add Co-authored-by before Signed-off-by
+  # Using temp file to reorder trailers
+  TMPFILE=$(mktemp)
+  # Everything before trailers
+  sed '/^Signed-off-by:/d; /^Co-authored-by:/d' "$COMMIT_MSG_FILE" > "$TMPFILE"
+  # Remove trailing blank lines
+  sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TMPFILE" 2>/dev/null || true
+  echo "" >> "$TMPFILE"
+  echo "Co-authored-by: Cursor (Claude)" >> "$TMPFILE"
+  grep "^Signed-off-by:" "$COMMIT_MSG_FILE" >> "$TMPFILE"
+  mv "$TMPFILE" "$COMMIT_MSG_FILE"
+fi
