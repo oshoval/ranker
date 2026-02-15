@@ -4,6 +4,8 @@
 * [Getting Started](getting-started/README.md)
   * [Usage Guide](getting-started/usage.md)
 * [Architecture](architecture/README.md)
+  * [Plugin System](architecture/plugin-system.md)
+  * [Data Flow](architecture/data-flow.md)
   * [Folder Structure](architecture/folder-structure.md)
 * [Features](features/README.md)
   * [PR Complexity Scoring](features/scoring.md)
@@ -12,3 +14,4 @@
 * [Development](development/README.md)
   * [Testing](development/testing.md)
   * [CI Pipeline](development/ci.md)
+  * [Adding a Plugin](development/adding-a-plugin.md)
