@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppSidebar } from '@/shell/app-sidebar';
+import { ProductLogPanel } from '@/shell/product-log-panel';
 import { UserLogPanel } from '@/shell/user-log-panel';
 import { plugins } from '@/features/registry';
 
@@ -70,6 +71,12 @@ export function AppShell() {
               open={userLogPanelOpen}
               onClose={() => setUserLogPanelOpen(false)}
               onLogCountChange={setUserLogErrorCount}
+            />
+          )}
+          {productLogPanelOpen && (
+            <ProductLogPanel
+              open={productLogPanelOpen}
+              onClose={() => setProductLogPanelOpen(false)}
             />
           )}
         </div>
