@@ -8,9 +8,6 @@ test.describe('User log panel', () => {
     await page.goto('/');
     await page.waitForTimeout(500);
 
-    // Panel should be collapsed by default
-    const panel = page.locator('[data-testid="user-log-panel"]');
-
     // Open with Ctrl+L
     await page.keyboard.press('Control+l');
     await page.waitForTimeout(500);

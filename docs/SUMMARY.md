@@ -9,3 +9,6 @@
   * [PR Complexity Scoring](features/scoring.md)
   * [PR Filters](features/filters.md)
   * [PR Table](features/pr-table.md)
+* [Development](development/README.md)
+  * [Testing](development/testing.md)
+  * [CI Pipeline](development/ci.md)
