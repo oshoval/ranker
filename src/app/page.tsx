@@ -4,9 +4,5 @@
 import { AppShell } from '@/shell/app-shell';
 
 export default function Home() {
-  return (
-    <main className="min-h-screen">
-      <AppShell />
-    </main>
-  );
+  return <AppShell />;
 }
