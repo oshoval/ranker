@@ -1,9 +1,16 @@
 # Architecture
 
-PRanker uses a plugin-based architecture. Features (like PRanker) are registered as plugins; the sidebar discovers them and renders their UI in the main area.
+PRanker is built with Next.js and uses a plugin-based architecture. Features are self-contained modules registered with the app shell.
 
-## Plugin System
+## Topics
 
-- **FeaturePlugin interface**: Each plugin defines `id`, `name`, `description`, `icon`, and a React `component`.
-- **Sidebar discovery**: The app sidebar reads the plugin registry and lists all plugins. Selecting one mounts its component in the main content area.
-- **Adding a plugin**: Add a new folder under `src/features/` with your plugin implementation, then register it in the plugin registry (add one line to the registry array).
+- [Plugin System](plugin-system.md) -- how features are organized and registered
+- [Data Flow](data-flow.md) -- from user input to scored PR table
+- [Folder Structure](folder-structure.md) -- annotated directory tree
+
+## Key Decisions
+
+- **Plugin pattern**: Each feature (like PRanker) is a standalone module with its own components, hooks, API logic, and tests
+- **Server-side scoring**: PRs are scored on the server to keep the scoring algorithm private (OPSEC)
+- **Shared infrastructure**: Cross-cutting concerns (GitHub client, cache, logging) live in `src/shared/`
+- **Shell separation**: The app frame (sidebar, layout, log panels) is independent of plugins
