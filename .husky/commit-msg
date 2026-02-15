@@ -51,9 +51,25 @@ if ! grep -q "^Co-authored-by:" "$COMMIT_MSG_FILE"; then
   # Everything before trailers
   sed '/^Signed-off-by:/d; /^Co-authored-by:/d' "$COMMIT_MSG_FILE" > "$TMPFILE"
   # Remove trailing blank lines
-  sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TMPFILE" 2>/dev/null || true
+  while [ -s "$TMPFILE" ] && [ -z "$(tail -c 1 "$TMPFILE" | tr -d '\n')" ] && \
+        tail -1 "$TMPFILE" | grep -qE '^[[:space:]]*$'; do
+    sed -i '$ d' "$TMPFILE" 2>/dev/null || sed -i '' '$ d' "$TMPFILE"
+  done
   echo "" >> "$TMPFILE"
   echo "Co-authored-by: Cursor (Claude)" >> "$TMPFILE"
   grep "^Signed-off-by:" "$COMMIT_MSG_FILE" >> "$TMPFILE"
   mv "$TMPFILE" "$COMMIT_MSG_FILE"
 fi
+
+# --- 4. Normalize: exactly one blank line before trailers, none between them ---
+TMPFILE=$(mktemp)
+TRAILER_PATTERN='^(Signed-off-by|Co-authored-by|Acked-by|Reviewed-by|Tested-by|Cc):'
+# Extract body (non-trailer lines) and strip trailing blank lines
+grep -vE "$TRAILER_PATTERN" "$COMMIT_MSG_FILE" | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' > "$TMPFILE"
+# Append one blank line + trailers (in order, no blanks between them)
+TRAILERS=$(grep -E "$TRAILER_PATTERN" "$COMMIT_MSG_FILE" | grep -v '^$' || true)
+if [ -n "$TRAILERS" ]; then
+  echo "" >> "$TMPFILE"
+  echo "$TRAILERS" >> "$TMPFILE"
+fi
+mv "$TMPFILE" "$COMMIT_MSG_FILE"
