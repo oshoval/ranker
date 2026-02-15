@@ -58,6 +58,36 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
  * File type categories for complexity assessment.
  */
 export const FILE_TYPE_CATEGORIES: FileTypeCategory[] = [
+  // Order matters: more specific categories first, core_logic last (fallback).
+  // categorizeFile() returns the first match, so test/__tests__/e2e must come
+  // before .ts/.json catch-alls.
+  {
+    name: 'generated',
+    patterns: [/\.lock$/i, /\.min\./i, /\/dist\//i, /\/build\//i, /\.d\.ts$/i],
+    complexityWeight: 0.1,
+  },
+  {
+    name: 'test',
+    patterns: [
+      /\.test\./i,
+      /\.spec\./i,
+      /__tests__\//i,
+      /\/e2e\//i,
+      /\.stories\./i,
+    ],
+    complexityWeight: 0.4,
+  },
+  {
+    name: 'dependency',
+    patterns: [
+      /package\.json$/i,
+      /go\.mod$/i,
+      /go\.sum$/i,
+      /requirements\.txt$/i,
+      /Cargo\.toml$/i,
+    ],
+    complexityWeight: 0.5,
+  },
   {
     name: 'documentation',
     patterns: [
@@ -85,33 +115,6 @@ export const FILE_TYPE_CATEGORIES: FileTypeCategory[] = [
       /Dockerfile$/i,
     ],
     complexityWeight: 0.3,
-  },
-  {
-    name: 'test',
-    patterns: [
-      /\.test\./i,
-      /\.spec\./i,
-      /\/__tests__\//i,
-      /\/e2e\//i,
-      /\.stories\./i,
-    ],
-    complexityWeight: 0.4,
-  },
-  {
-    name: 'generated',
-    patterns: [/\.lock$/i, /\.min\./i, /\/dist\//i, /\/build\//i, /\.d\.ts$/i],
-    complexityWeight: 0.1,
-  },
-  {
-    name: 'dependency',
-    patterns: [
-      /package\.json$/i,
-      /go\.mod$/i,
-      /go\.sum$/i,
-      /requirements\.txt$/i,
-      /Cargo\.toml$/i,
-    ],
-    complexityWeight: 0.5,
   },
   {
     name: 'core_logic',
