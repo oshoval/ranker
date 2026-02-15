@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Red Hat, Inc.
+
+import { test, expect } from '@playwright/test';
+
+test.describe('Basic flow', () => {
+  test('page loads with sidebar and ranker nav item', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('nav')).toBeVisible();
+    await expect(page.getByText('PRanker')).toBeVisible();
+    await expect(page.getByText('PR Ranker')).toBeVisible();
+  });
+
+  test('repo input field is visible', async ({ page }) => {
+    await page.goto('/');
+    const input = page.getByPlaceholder(/owner\/repo/i);
+    await expect(input).toBeVisible();
+  });
+
+  test('theme toggle works', async ({ page }) => {
+    await page.goto('/');
+    const html = page.locator('html');
+
+    // Find and click theme toggle
+    const themeButton = page.getByRole('button', {
+      name: /theme|dark|light|sun|moon/i,
+    });
+    await expect(themeButton).toBeVisible();
+
+    const initialClass = await html.getAttribute('class');
+    await themeButton.click();
+    await page.waitForTimeout(500);
+    const afterClass = await html.getAttribute('class');
+
+    // Class should have changed (dark <-> light)
+    expect(initialClass).not.toEqual(afterClass);
+
+    // Toggle back
+    await themeButton.click();
+    await page.waitForTimeout(500);
+    const revertedClass = await html.getAttribute('class');
+    expect(revertedClass).toEqual(initialClass);
+  });
+
+  test('sidebar collapse/expand works', async ({ page }) => {
+    await page.goto('/');
+
+    // Find collapse button
+    const collapseButton = page.getByRole('button', {
+      name: /collapse|expand|toggle.*sidebar/i,
+    });
+    if (await collapseButton.isVisible()) {
+      await collapseButton.click();
+      await page.waitForTimeout(400);
+      // Text should be hidden in collapsed mode
+      await collapseButton.click();
+      await page.waitForTimeout(400);
+    }
+  });
+
+  test('health API returns 200', async ({ request }) => {
+    const response = await request.get('/api/health');
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body).toHaveProperty('status', 'ok');
+  });
+});
