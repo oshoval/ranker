@@ -5,13 +5,13 @@
 
 import {
   AlertCircle,
-  BarChart2,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Sun,
   Terminal,
 } from 'lucide-react';
+import { AnimatedBarChart } from '@/components/ui/animated-bar-chart';
 import { useTheme } from 'next-themes';
 import { plugins } from '@/features/registry';
 import { Badge } from '@/components/ui/badge';
@@ -73,13 +73,13 @@ export function AppSidebar({
       <div className="flex h-14 items-center justify-between border-b border-border px-3">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <BarChart2 className="h-6 w-6 text-primary" />
+            <AnimatedBarChart className="h-6 w-6 text-primary" />
             <span className="font-semibold">PRanker</span>
           </div>
         )}
         {collapsed && (
           <div className="flex flex-1 justify-center">
-            <BarChart2 className="h-6 w-6 text-primary" />
+            <AnimatedBarChart className="h-6 w-6 text-primary" />
           </div>
         )}
       </div>
