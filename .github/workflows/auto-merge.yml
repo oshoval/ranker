@@ -6,13 +6,20 @@
 #   1. "lgtm" label     — added by a reviewer  listed in OWNERS
 #   2. "approve" label   — added by an approver listed in OWNERS
 #   3. All required CI status checks must pass
+#   4. PR branch must be up-to-date with the base branch (strict mode)
+#
+# Automatic rebase behaviour (like Prow tide):
+#   - When both labels are present the workflow updates the PR branch
+#     so CI runs against the latest base + PR code before merging.
+#   - Bot-triggered branch updates do NOT remove lgtm (only human
+#     pushes invalidate the review).
 #
 # Safety:
 #   - Labels added by users NOT in OWNERS are removed automatically.
-#   - "lgtm" is removed whenever the PR receives new commits (rebase/push).
-#   - OWNERS is always read from the BASE branch, never from the PR branch.
-#   - Uses pull_request_target so the workflow has write access for fork PRs
-#     while never checking out or executing PR code.
+#   - "lgtm" is removed when a human pushes new commits to the PR.
+#   - OWNERS is always read from the BASE branch, never from the PR.
+#   - Uses pull_request_target so the workflow has write access for
+#     fork PRs while never checking out or executing PR code.
 
 name: Auto Merge
 
@@ -25,9 +32,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  # ── Remove stale "lgtm" when PR is updated (push / rebase) ────────────
+  # ── Remove stale "lgtm" when a HUMAN pushes new commits ───────────────
   remove-stale-lgtm:
-    if: github.event.action == 'synchronize'
+    if: >-
+      github.event.action == 'synchronize'
+      && github.event.sender.login != 'github-actions[bot]'
+      && github.event.sender.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Remove lgtm label
@@ -37,6 +47,7 @@ jobs:
           gh pr edit "${{ github.event.pull_request.number }}" \
             --remove-label lgtm \
             --repo "${{ github.repository }}" 2>/dev/null || true
+          echo "🔄 Removed lgtm — PR updated by ${{ github.event.sender.login }}"
 
   # ── Validate label & auto-merge when both gates are met ────────────────
   handle-label:
@@ -73,7 +84,7 @@ jobs:
             SECTION="reviewers"
           fi
 
-          # Parse the relevant section from OWNERS (handles both reviewers and approvers)
+          # Parse the relevant section from OWNERS
           IN_SECTION=false
           AUTHORIZED=false
           while IFS= read -r line; do
@@ -106,7 +117,7 @@ jobs:
             gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}"
           fi
 
-      - name: Enable auto-merge if both labels present
+      - name: Enable auto-merge and update branch if both labels present
         if: env.validated == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,6 +136,12 @@ jobs:
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
             echo "🚀 Both labels present — enabling auto-merge (squash)"
             gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
+
+            # Update the PR branch so CI runs against latest base (like Prow tide).
+            # This is a no-op if the branch is already up-to-date.
+            echo "🔄 Updating PR branch to include latest base..."
+            gh api -X PUT "repos/${{ github.repository }}/pulls/${PR_NUMBER}/update-branch" \
+              2>/dev/null || echo "ℹ️  Branch already up-to-date or update not needed"
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
