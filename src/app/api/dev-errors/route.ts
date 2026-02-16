@@ -29,6 +29,8 @@ interface CapturedError {
 // In-memory store (resets on server restart)
 const errors: CapturedError[] = [];
 const MAX_ERRORS = 50;
+const MAX_PAYLOAD_BYTES = 16_384; // 16 KB max per POST body
+const MAX_FIELD_LENGTH = 4_096; // 4 KB max per field
 
 function isDevOnly(): NextResponse | null {
   if (process.env.NODE_ENV !== 'development') {
@@ -60,13 +62,24 @@ export async function POST(req: NextRequest) {
 
   // POST is always open — comes from the client-side capture component
   try {
+    const contentLength = parseInt(
+      req.headers.get('content-length') ?? '0',
+      10
+    );
+    if (contentLength > MAX_PAYLOAD_BYTES) {
+      return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+    }
+
     const body = await req.json();
+
+    const truncate = (val: string) => val.slice(0, MAX_FIELD_LENGTH);
+
     const entry: CapturedError = {
       timestamp: new Date().toISOString(),
-      type: String(body.type ?? 'unknown'),
-      message: String(body.message ?? ''),
-      source: body.source ? String(body.source) : undefined,
-      stack: body.stack ? String(body.stack) : undefined,
+      type: truncate(String(body.type ?? 'unknown')),
+      message: truncate(String(body.message ?? '')),
+      source: body.source ? truncate(String(body.source)) : undefined,
+      stack: body.stack ? truncate(String(body.stack)) : undefined,
     };
 
     errors.push(entry);
