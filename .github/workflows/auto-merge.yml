@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout base branch (OWNERS only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             OWNERS
@@ -194,7 +194,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout base branch (OWNERS only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           sparse-checkout: |
