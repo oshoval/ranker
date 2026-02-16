@@ -8,7 +8,7 @@
 ## Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/oshoval/ranker.git
 cd ranker
 npm install
 cp .env.local.example .env.local
