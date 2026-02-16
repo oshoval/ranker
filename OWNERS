@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Prow-compatible OWNERS file.
+# See https://www.kubernetes.dev/docs/guide/owners/ for the specification.
+#
+# approvers — can add the "approve" label (final merge gate).
+# reviewers — can add the "lgtm" label (code review passed).
+
+approvers:
+  - oshoval
+
+reviewers:
+  - oshoval

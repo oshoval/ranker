@@ -1,23 +1,130 @@
 # SPDX-License-Identifier: Apache-2.0
-# Auto-merge PRs when the "lgtm" label is added.
-# CI must still pass before GitHub performs the actual merge.
+#
+# Label-based merge gate (Prow-style, GitHub Actions).
+#
+# Requirements for auto-merge:
+#   1. "lgtm" label     — added by a reviewer  listed in OWNERS
+#   2. "approve" label   — added by an approver listed in OWNERS
+#   3. All required CI status checks must pass
+#
+# Safety:
+#   - Labels added by users NOT in OWNERS are removed automatically.
+#   - "lgtm" is removed whenever the PR receives new commits (rebase/push).
+#   - OWNERS is always read from the BASE branch, never from the PR branch.
+#   - Uses pull_request_target so the workflow has write access for fork PRs
+#     while never checking out or executing PR code.
 
 name: Auto Merge
 
 on:
-  pull_request:
-    types: [labeled]
+  pull_request_target:
+    types: [labeled, synchronize]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  auto-merge:
-    if: github.event.label.name == 'lgtm'
+  # ── Remove stale "lgtm" when PR is updated (push / rebase) ────────────
+  remove-stale-lgtm:
+    if: github.event.action == 'synchronize'
     runs-on: ubuntu-latest
     steps:
-      - name: Enable auto-merge
+      - name: Remove lgtm label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr merge ${{ github.event.pull_request.number }} --auto --squash --repo ${{ github.repository }}
+        run: |
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --remove-label lgtm \
+            --repo "${{ github.repository }}" 2>/dev/null || true
+
+  # ── Validate label & auto-merge when both gates are met ────────────────
+  handle-label:
+    if: >-
+      github.event.action == 'labeled'
+      && (github.event.label.name == 'lgtm' || github.event.label.name == 'approve')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch (OWNERS only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          sparse-checkout: |
+            OWNERS
+            OWNERS_ALIASES
+          sparse-checkout-cone-mode: false
+
+      - name: Validate labeler is in OWNERS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SENDER: ${{ github.event.sender.login }}
+          LABEL: ${{ github.event.label.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f OWNERS ]; then
+            echo "::error::OWNERS file not found on base branch"
+            exit 1
+          fi
+
+          # Determine which section to check based on the label
+          if [ "$LABEL" = "approve" ]; then
+            SECTION="approvers"
+          else
+            SECTION="reviewers"
+          fi
+
+          # Parse the relevant section from OWNERS (handles both reviewers and approvers)
+          IN_SECTION=false
+          AUTHORIZED=false
+          while IFS= read -r line; do
+            # Detect section headers (e.g. "approvers:" or "reviewers:")
+            if echo "$line" | grep -qE '^[a-z_]+:'; then
+              if echo "$line" | grep -qE "^${SECTION}:"; then
+                IN_SECTION=true
+              else
+                IN_SECTION=false
+              fi
+              continue
+            fi
+
+            # Check list entries within the target section
+            if [ "$IN_SECTION" = true ]; then
+              ENTRY=$(echo "$line" | sed -n 's/^[[:space:]]*-[[:space:]]*//p' | tr -d '[:space:]')
+              if [ "$ENTRY" = "$SENDER" ]; then
+                AUTHORIZED=true
+                break
+              fi
+            fi
+          done < OWNERS
+
+          if [ "$AUTHORIZED" = true ]; then
+            echo "validated=true" >> "$GITHUB_ENV"
+            echo "✅ ${SENDER} is an authorized ${SECTION%s} — '${LABEL}' label accepted"
+          else
+            echo "validated=false" >> "$GITHUB_ENV"
+            echo "⛔ ${SENDER} is NOT in ${SECTION} — removing '${LABEL}' label"
+            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}"
+          fi
+
+      - name: Enable auto-merge if both labels present
+        if: env.validated == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
+            --json labels --jq '.labels[].name')
+
+          HAS_LGTM=false
+          HAS_APPROVE=false
+          echo "$LABELS" | grep -qx "lgtm"    && HAS_LGTM=true
+          echo "$LABELS" | grep -qx "approve"  && HAS_APPROVE=true
+
+          echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
+
+          if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
+            echo "🚀 Both labels present — enabling auto-merge (squash)"
+            gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
+          else
+            echo "⏳ Waiting for both lgtm + approve"
+          fi

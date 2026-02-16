@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Prow-compatible OWNERS_ALIASES file.
+# Define groups that can be referenced in OWNERS files.
+
+aliases:
+  ranker-maintainers:
+    - oshoval
