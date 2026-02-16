@@ -146,7 +146,7 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            echo "🚀 Both labels present — submitting review + enabling auto-merge (squash)"
+            echo "🚀 Both labels present — submitting review + enabling auto-merge (merge commit)"
 
             # Submit a GitHub review approval to satisfy branch protection
             # "required approving reviews" rule.
@@ -262,7 +262,7 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            echo "🚀 Both labels present — submitting review + enabling auto-merge (squash)"
+            echo "🚀 Both labels present — submitting review + enabling auto-merge (merge commit)"
 
             gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
               --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
