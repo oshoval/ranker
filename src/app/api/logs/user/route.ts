@@ -3,10 +3,15 @@
 
 import { NextResponse } from 'next/server';
 import { userLogs } from '@/shared/storage/logs';
+import { requireAdminAuth } from '@/shared/utils/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
 export function GET(request: Request) {
+  if (!requireAdminAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const level = searchParams.get('level') as
     | 'info'
@@ -22,7 +27,11 @@ export function GET(request: Request) {
   return NextResponse.json(result);
 }
 
-export function DELETE() {
+export function DELETE(request: Request) {
+  if (!requireAdminAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   userLogs.clear();
   return NextResponse.json({ cleared: true });
 }
