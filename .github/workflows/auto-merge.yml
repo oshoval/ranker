@@ -8,15 +8,17 @@
 #   3. All required CI status checks must pass
 #   4. PR branch must be up-to-date with the base branch (strict mode)
 #
-# Automatic rebase behaviour (like Prow tide):
+# Rebase behaviour (like Prow tide in strict mode):
+#   - ANY push to the PR (human, bot, or rebase) removes "lgtm" and
+#     disables auto-merge.  The reviewer must re-add "lgtm" after
+#     confirming the rebased code is still correct.
 #   - When both labels are present the workflow updates the PR branch
-#     so CI runs against the latest base + PR code before merging.
-#   - Bot-triggered branch updates do NOT remove lgtm (only human
-#     pushes invalidate the review).
+#     so CI runs against the latest base + PR code.  If a rebase was
+#     needed, lgtm is removed and must be re-applied; if the branch
+#     was already current, merge proceeds immediately.
 #
 # Safety:
 #   - Labels added by users NOT in OWNERS are removed automatically.
-#   - "lgtm" is removed when a human pushes new commits to the PR.
 #   - OWNERS is always read from the BASE branch, never from the PR.
 #   - Uses pull_request_target so the workflow has write access for
 #     fork PRs while never checking out or executing PR code.
@@ -32,12 +34,9 @@ permissions:
   pull-requests: write
 
 jobs:
-  # ── Remove stale "lgtm" when a HUMAN pushes new commits ───────────────
+  # ── Remove stale "lgtm" on ANY push (human or bot) ────────────────────
   remove-stale-lgtm:
-    if: >-
-      github.event.action == 'synchronize'
-      && github.event.sender.login != 'github-actions[bot]'
-      && github.event.sender.login != 'dependabot[bot]'
+    if: github.event.action == 'synchronize'
     runs-on: ubuntu-latest
     steps:
       - name: Remove lgtm label and disable auto-merge
@@ -140,11 +139,15 @@ jobs:
             echo "🚀 Both labels present — enabling auto-merge (squash)"
             gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
 
-            # Update the PR branch so CI runs against latest base (like Prow tide).
-            # This is a no-op if the branch is already up-to-date.
+            # Update the PR branch so CI runs against latest base.
+            # If the branch is already up-to-date this is a no-op and
+            # merge proceeds once CI passes.
+            # If a rebase IS needed, the synchronize event will fire,
+            # lgtm will be removed, and the reviewer must re-add it
+            # to confirm the rebased code (Prow strict-tide behaviour).
             echo "🔄 Updating PR branch to include latest base..."
             gh api -X PUT "repos/${{ github.repository }}/pulls/${PR_NUMBER}/update-branch" \
-              2>/dev/null || echo "ℹ️  Branch already up-to-date or update not needed"
+              2>/dev/null || echo "ℹ️  Branch already up-to-date"
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
