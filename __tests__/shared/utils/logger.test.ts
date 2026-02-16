@@ -145,6 +145,18 @@ describe('redact', () => {
     );
   });
 
+  it('redacts gho_xxx OAuth tokens', () => {
+    expect(redact('oauth gho_abcdef123456789012345678901234567890')).toBe(
+      'oauth [REDACTED]'
+    );
+  });
+
+  it('redacts github_pat_ fine-grained PATs', () => {
+    expect(
+      redact('pat github_pat_11ABCDEF0123456789abcdef0123456789abcdef01234567')
+    ).toBe('pat [REDACTED]');
+  });
+
   it('redacts Bearer tokens', () => {
     expect(redact('Authorization: Bearer secret-token-123')).toBe(
       'Authorization: Bearer [REDACTED]'

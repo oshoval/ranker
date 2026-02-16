@@ -21,12 +21,14 @@ function getDefaultLevel(): LogLevel {
   return 'info';
 }
 
-const TOKEN_PATTERN = /gh[ps]_[A-Za-z0-9_]{36,}/g;
+const TOKEN_PATTERN = /gh[pso]_[A-Za-z0-9_]{36,}/g;
+const FINE_GRAINED_PAT = /github_pat_[A-Za-z0-9_]{22,}/g;
 const BEARER_PATTERN = /Bearer\s+\S+/gi;
 
 function redact(message: string): string {
   return message
     .replace(TOKEN_PATTERN, '[REDACTED]')
+    .replace(FINE_GRAINED_PAT, '[REDACTED]')
     .replace(BEARER_PATTERN, 'Bearer [REDACTED]');
 }
 
