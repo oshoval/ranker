@@ -7,8 +7,9 @@ test.describe('Basic flow', () => {
   test('page loads with sidebar and ranker nav item', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('nav')).toBeVisible();
-    await expect(page.getByText('PRanker')).toBeVisible();
-    await expect(page.getByText('PR Ranker')).toBeVisible();
+    await expect(
+      page.locator('aside').getByText('PRanker').first()
+    ).toBeVisible();
   });
 
   test('repo input field is visible', async ({ page }) => {
@@ -21,9 +22,12 @@ test.describe('Basic flow', () => {
     await page.goto('/');
     const html = page.locator('html');
 
+    // Wait for next-themes hydration
+    await expect(html).toHaveAttribute('class', /.+/, { timeout: 5_000 });
+
     // Find and click theme toggle
     const themeButton = page.getByRole('button', {
-      name: /theme|dark|light|sun|moon/i,
+      name: /toggle theme/i,
     });
     await expect(themeButton).toBeVisible();
 

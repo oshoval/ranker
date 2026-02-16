@@ -12,8 +12,8 @@ test.describe('User log panel', () => {
     await page.keyboard.press('Control+l');
     await page.waitForTimeout(500);
 
-    // Look for log panel content
-    const logHeading = page.getByText(/user.*log|error.*log/i);
+    // Look for log panel heading (specifically "User error logs" in the panel)
+    const logHeading = page.getByText('User error logs');
     await expect(logHeading).toBeVisible({ timeout: 5_000 });
 
     // Close with Ctrl+L

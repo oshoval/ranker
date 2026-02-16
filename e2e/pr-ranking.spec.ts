@@ -23,15 +23,15 @@ const MOCK_PRS_RESPONSE = {
       files: [],
       reviewRequests: [],
       score: 7,
-      complexity: 'Hard',
-      scoreDetails: {
-        size: 6,
-        age: 5,
-        reviewActivity: 3,
-        labelRisk: 2,
+      scoreBreakdown: {
+        lines: 6,
+        files: 5,
         fileTypes: 5,
+        deps: 2,
+        tests: 3,
+        docs: 1,
         crossCutting: 7,
-        staleness: 4,
+        total: 7,
       },
     },
     {
@@ -52,15 +52,15 @@ const MOCK_PRS_RESPONSE = {
       files: [],
       reviewRequests: [],
       score: 2,
-      complexity: 'Easy',
-      scoreDetails: {
-        size: 1,
-        age: 1,
-        reviewActivity: 1,
-        labelRisk: 1,
+      scoreBreakdown: {
+        lines: 1,
+        files: 1,
         fileTypes: 2,
+        deps: 1,
+        tests: 1,
+        docs: 1,
         crossCutting: 1,
-        staleness: 1,
+        total: 2,
       },
     },
   ],
@@ -90,11 +90,9 @@ test.describe('PR ranking flow (mocked)', () => {
     await input.fill('test-org/test-repo');
     await input.press('Enter');
 
-    // Wait for table to appear
-    await expect(page.getByText('Add authentication module')).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText('Fix typo in README')).toBeVisible();
+    // Wait for table to appear (PR numbers are shown in the table)
+    await expect(page.getByText('#101')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('#42')).toBeVisible();
   });
 
   test('table shows score badges with correct labels', async ({ page }) => {
@@ -103,8 +101,9 @@ test.describe('PR ranking flow (mocked)', () => {
     await input.fill('test-org/test-repo');
     await input.press('Enter');
 
-    await expect(page.getByText('Hard')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Easy')).toBeVisible();
+    // ScoreBadge renders "{score} - {label}"
+    await expect(page.getByText('7 - Hard')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('2 - Easy')).toBeVisible();
   });
 
   test('stats cards show correct numbers', async ({ page }) => {
@@ -114,9 +113,7 @@ test.describe('PR ranking flow (mocked)', () => {
     await input.press('Enter');
 
     // Wait for data to load
-    await expect(page.getByText('Add authentication module')).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByText('#101')).toBeVisible({ timeout: 10_000 });
 
     // Stats should show total
     await expect(page.getByText('2').first()).toBeVisible();
@@ -128,9 +125,7 @@ test.describe('PR ranking flow (mocked)', () => {
     await input.fill('test-org/test-repo');
     await input.press('Enter');
 
-    await expect(page.getByText('Add authentication module')).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByText('#101')).toBeVisible({ timeout: 10_000 });
 
     // Click score column header to sort
     const scoreHeader = page.getByRole('columnheader', { name: /score/i });
@@ -146,17 +141,14 @@ test.describe('PR ranking flow (mocked)', () => {
     await input.fill('test-org/test-repo');
     await input.press('Enter');
 
-    await expect(page.getByText('Add authentication module')).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByText('#101')).toBeVisible({ timeout: 10_000 });
 
-    // Click on a row to expand
-    const row = page.getByText('Add authentication module');
-    await row.click();
+    // Click on the score badge to expand the row
+    await page.getByText('7 - Hard').click();
     await page.waitForTimeout(500);
 
-    // Look for expanded detail content (author, branch info)
-    await expect(page.getByText('alice').first()).toBeVisible();
+    // Look for expanded detail content (branch info)
+    await expect(page.getByText('feat/auth').first()).toBeVisible();
   });
 
   test('empty state when no PRs match filters', async ({ page }) => {
