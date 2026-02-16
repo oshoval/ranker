@@ -154,7 +154,7 @@ jobs:
               --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
               2>/dev/null || echo "ℹ️  Review already submitted or not needed"
 
-            gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
+            gh pr merge "$PR_NUMBER" --auto --merge --repo "${{ github.repository }}"
 
             echo "🔄 Updating PR branch to include latest base..."
             gh api -X PUT "repos/${{ github.repository }}/pulls/${PR_NUMBER}/update-branch" \
@@ -268,7 +268,7 @@ jobs:
               --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
               2>/dev/null || echo "ℹ️  Review already submitted or not needed"
 
-            gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
+            gh pr merge "$PR_NUMBER" --auto --merge --repo "${{ github.repository }}"
 
             # Update the PR branch so CI runs against latest base.
             # If already up-to-date this is a no-op → merge proceeds.
