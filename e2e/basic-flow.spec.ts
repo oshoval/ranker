@@ -22,8 +22,8 @@ test.describe('Basic flow', () => {
     await page.goto('/');
     const html = page.locator('html');
 
-    // Wait for next-themes hydration
-    await expect(html).toHaveAttribute('class', /.+/, { timeout: 5_000 });
+    // Wait for next-themes hydration (uses data-theme attribute)
+    await expect(html).toHaveAttribute('data-theme', /.+/, { timeout: 5_000 });
 
     // Find and click theme toggle
     const themeButton = page.getByRole('button', {
@@ -31,19 +31,19 @@ test.describe('Basic flow', () => {
     });
     await expect(themeButton).toBeVisible();
 
-    const initialClass = await html.getAttribute('class');
+    const initialTheme = await html.getAttribute('data-theme');
     await themeButton.click();
     await page.waitForTimeout(500);
-    const afterClass = await html.getAttribute('class');
+    const afterTheme = await html.getAttribute('data-theme');
 
-    // Class should have changed (dark <-> light)
-    expect(initialClass).not.toEqual(afterClass);
+    // Theme should have changed (dark <-> light)
+    expect(initialTheme).not.toEqual(afterTheme);
 
     // Toggle back
     await themeButton.click();
     await page.waitForTimeout(500);
-    const revertedClass = await html.getAttribute('class');
-    expect(revertedClass).toEqual(initialClass);
+    const revertedTheme = await html.getAttribute('data-theme');
+    expect(revertedTheme).toEqual(initialTheme);
   });
 
   test('sidebar collapse/expand works', async ({ page }) => {
