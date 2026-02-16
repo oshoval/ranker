@@ -3,10 +3,16 @@
 # Label-based merge gate (Prow-style, GitHub Actions).
 #
 # Requirements for auto-merge:
-#   1. "lgtm" label     — added by a reviewer  listed in OWNERS
-#   2. "approve" label   — added by an approver listed in OWNERS
+#   1. "lgtm" label     — added via /lgtm by a reviewer  listed in OWNERS
+#   2. "approve" label   — added via /approve by an approver listed in OWNERS
 #   3. All required CI status checks must pass
 #   4. PR branch must be up-to-date with the base branch (strict mode)
+#
+# Slash commands (in PR comments):
+#   /lgtm            — adds lgtm label      (reviewers only)
+#   /lgtm cancel     — removes lgtm label   (reviewers only)
+#   /approve         — adds approve label    (approvers only)
+#   /approve cancel  — removes approve label (approvers only)
 #
 # Merge pipeline:
 #   - When both labels are present the workflow enables auto-merge and
@@ -25,21 +31,107 @@
 #
 # Safety:
 #   - Labels added by users NOT in OWNERS are removed automatically.
+#   - Slash commands from unauthorized users are ignored with a comment.
 #   - OWNERS is always read from the BASE branch, never from the PR.
-#   - Uses pull_request_target so the workflow has write access for
-#     fork PRs while never checking out or executing PR code.
+#   - Uses pull_request_target / issue_comment so the workflow has
+#     write access for fork PRs while never executing PR code.
 
 name: Auto Merge
 
 on:
   pull_request_target:
     types: [labeled, synchronize]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
+  # ── Handle /lgtm and /approve slash commands ───────────────────────────
+  slash-command:
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.issue.pull_request
+      && (
+        startsWith(github.event.comment.body, '/lgtm')
+        || startsWith(github.event.comment.body, '/approve')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base branch (OWNERS only)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            OWNERS
+            OWNERS_ALIASES
+          sparse-checkout-cone-mode: false
+
+      - name: Process slash command
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT: ${{ github.event.comment.body }}
+          SENDER: ${{ github.event.comment.user.login }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          if [ ! -f OWNERS ]; then
+            echo "::error::OWNERS file not found"
+            exit 1
+          fi
+
+          # Parse the command
+          CMD=$(echo "$COMMENT" | head -1 | tr -d '\r')
+
+          case "$CMD" in
+            /lgtm)          ACTION="add";    LABEL="lgtm";    SECTION="reviewers"  ;;
+            "/lgtm cancel") ACTION="remove"; LABEL="lgtm";    SECTION="reviewers"  ;;
+            /approve)          ACTION="add";    LABEL="approve"; SECTION="approvers" ;;
+            "/approve cancel") ACTION="remove"; LABEL="approve"; SECTION="approvers" ;;
+            *)
+              echo "ℹ️  Unrecognised command: $CMD"
+              exit 0
+              ;;
+          esac
+
+          # Check if sender is in the correct OWNERS section
+          IN_SECTION=false
+          AUTHORIZED=false
+          while IFS= read -r line; do
+            if echo "$line" | grep -qE '^[a-z_]+:'; then
+              if echo "$line" | grep -qE "^${SECTION}:"; then
+                IN_SECTION=true
+              else
+                IN_SECTION=false
+              fi
+              continue
+            fi
+            if [ "$IN_SECTION" = true ]; then
+              ENTRY=$(echo "$line" | sed -n 's/^[[:space:]]*-[[:space:]]*//p' | tr -d '[:space:]')
+              if [ "$ENTRY" = "$SENDER" ]; then
+                AUTHORIZED=true
+                break
+              fi
+            fi
+          done < OWNERS
+
+          if [ "$AUTHORIZED" != true ]; then
+            echo "⛔ ${SENDER} is not in ${SECTION}"
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" \
+              --body "⛔ @${SENDER} you are not listed in \`OWNERS\` \`${SECTION}\` — \`${CMD}\` ignored."
+            exit 0
+          fi
+
+          # Apply the label action
+          if [ "$ACTION" = "add" ]; then
+            gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "${{ github.repository }}"
+            echo "✅ ${SENDER}: /${LABEL} → label added"
+          else
+            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}" 2>/dev/null || true
+            gh pr merge "$PR_NUMBER" --disable-auto --repo "${{ github.repository }}" 2>/dev/null || true
+            echo "✅ ${SENDER}: /${LABEL} cancel → label removed"
+          fi
+
   # ── Remove stale "lgtm" on external pushes (not our own rebase) ───────
   remove-stale-lgtm:
     if: >-
@@ -87,18 +179,15 @@ jobs:
             exit 1
           fi
 
-          # Determine which section to check based on the label
           if [ "$LABEL" = "approve" ]; then
             SECTION="approvers"
           else
             SECTION="reviewers"
           fi
 
-          # Parse the relevant section from OWNERS
           IN_SECTION=false
           AUTHORIZED=false
           while IFS= read -r line; do
-            # Detect section headers (e.g. "approvers:" or "reviewers:")
             if echo "$line" | grep -qE '^[a-z_]+:'; then
               if echo "$line" | grep -qE "^${SECTION}:"; then
                 IN_SECTION=true
@@ -107,8 +196,6 @@ jobs:
               fi
               continue
             fi
-
-            # Check list entries within the target section
             if [ "$IN_SECTION" = true ]; then
               ENTRY=$(echo "$line" | sed -n 's/^[[:space:]]*-[[:space:]]*//p' | tr -d '[:space:]')
               if [ "$ENTRY" = "$SENDER" ]; then
