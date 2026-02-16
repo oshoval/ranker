@@ -30,6 +30,24 @@ function redact(message: string): string {
     .replace(BEARER_PATTERN, 'Bearer [REDACTED]');
 }
 
+function redactArg(arg: unknown): unknown {
+  if (typeof arg === 'string') return redact(arg);
+  if (arg instanceof Error) {
+    const clone = new Error(redact(arg.message));
+    clone.name = arg.name;
+    if (arg.stack) clone.stack = redact(arg.stack);
+    return clone;
+  }
+  if (typeof arg === 'object' && arg !== null) {
+    try {
+      return JSON.parse(redact(JSON.stringify(arg)));
+    } catch {
+      return arg;
+    }
+  }
+  return arg;
+}
+
 class Logger {
   private level: LogLevel;
 
@@ -51,25 +69,25 @@ class Logger {
 
   debug(message: string, ...args: unknown[]) {
     if (this.shouldLog('debug')) {
-      console.debug(`[DEBUG] ${redact(message)}`, ...args);
+      console.debug(`[DEBUG] ${redact(message)}`, ...args.map(redactArg));
     }
   }
 
   info(message: string, ...args: unknown[]) {
     if (this.shouldLog('info')) {
-      console.info(`[INFO] ${redact(message)}`, ...args);
+      console.info(`[INFO] ${redact(message)}`, ...args.map(redactArg));
     }
   }
 
   warn(message: string, ...args: unknown[]) {
     if (this.shouldLog('warn')) {
-      console.warn(`[WARN] ${redact(message)}`, ...args);
+      console.warn(`[WARN] ${redact(message)}`, ...args.map(redactArg));
     }
   }
 
   error(message: string, ...args: unknown[]) {
     if (this.shouldLog('error')) {
-      console.error(`[ERROR] ${redact(message)}`, ...args);
+      console.error(`[ERROR] ${redact(message)}`, ...args.map(redactArg));
     }
   }
 }

@@ -100,6 +100,33 @@ describe('logger', () => {
       '[ERROR] Auth: Bearer [REDACTED]'
     );
   });
+
+  it('redacts tokens in extra string args', () => {
+    logger.setLevel('error');
+    logger.error('context', 'ghp_abcdef123456789012345678901234567890');
+    expect(consoleSpy.error).toHaveBeenCalledWith(
+      '[ERROR] context',
+      '[REDACTED]'
+    );
+  });
+
+  it('redacts tokens in object args', () => {
+    logger.setLevel('error');
+    logger.error('context', {
+      token: 'ghp_abcdef123456789012345678901234567890',
+    });
+    expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] context', {
+      token: '[REDACTED]',
+    });
+  });
+
+  it('redacts tokens in Error args', () => {
+    logger.setLevel('error');
+    const err = new Error('Failed ghp_abcdef123456789012345678901234567890');
+    logger.error('caught', err);
+    const redactedErr = consoleSpy.error.mock.calls[0][1] as Error;
+    expect(redactedErr.message).toBe('Failed [REDACTED]');
+  });
 });
 
 describe('redact', () => {
