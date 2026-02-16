@@ -240,21 +240,11 @@ export function ClickCreatures() {
   // Track which creature types have already appeared (resets on page refresh)
   const usedCreaturesRef = useRef<Set<number>>(new Set());
 
-  // Check server config once on mount
+  // Read feature flag from build-time env var
   useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.creaturesEnabled) setEnabled(true);
-        }
-      } catch {
-        // ignore
-      }
-    };
-    const t = setTimeout(check, 0);
-    return () => clearTimeout(t);
+    if (process.env.NEXT_PUBLIC_ENABLE_CREATURES === 'true') {
+      setEnabled(true);
+    }
   }, []);
 
   useEffect(() => {

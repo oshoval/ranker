@@ -27,6 +27,7 @@ function getAppVersion(): string {
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: getAppVersion(),
+    NEXT_PUBLIC_ENABLE_CREATURES: process.env.ENABLE_CREATURES ?? 'false',
   },
   output: 'standalone',
   async headers() {

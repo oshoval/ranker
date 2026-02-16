@@ -117,23 +117,6 @@ export function PRFilterView() {
 
   React.useEffect(() => {
     setRecentRepos(loadRecentRepos());
-
-    // Check if GITHUB_TOKEN is configured on the server
-    const checkToken = async () => {
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok) {
-          const body = await res.json();
-          if (body.githubTokenConfigured === false) {
-            setTokenMissing(true);
-          }
-        }
-      } catch {
-        // ignore -- health check failure is not a token issue
-      }
-    };
-    const t = setTimeout(checkToken, 0);
-    return () => clearTimeout(t);
   }, []);
 
   const { data, error, isLoading, isFetching, refetch } = usePRs({
@@ -141,6 +124,13 @@ export function PRFilterView() {
     repo,
     filters,
   });
+
+  // Detect missing GitHub token from API 401 response
+  React.useEffect(() => {
+    if (error?.message === 'Authentication required') {
+      setTokenMissing(true);
+    }
+  }, [error]);
 
   const handleSubmit = React.useCallback(() => {
     const parsed = parseRepoInput(repoInput);
