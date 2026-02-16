@@ -33,6 +33,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   # ── Handle /lgtm and /approve slash commands ───────────────────────────
   slash-command:
@@ -44,6 +48,7 @@ jobs:
         || startsWith(github.event.comment.body, '/approve')
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout base branch (OWNERS only)
         uses: actions/checkout@v4
@@ -130,9 +135,10 @@ jobs:
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
             echo "🚀 Both labels present — submitting review + enabling auto-merge"
-            gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
-              --body "Auto-approved: lgtm + approve verified in OWNERS." \
-              2>/dev/null || echo "ℹ️  Review already submitted"
+            if ! REVIEW_ERR=$(gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
+              --body "Auto-approved: lgtm + approve verified in OWNERS." 2>&1); then
+              echo "⚠️  Review submission failed: $REVIEW_ERR"
+            fi
             gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO"
           else
             echo "⏳ Waiting for both lgtm + approve"
@@ -142,6 +148,7 @@ jobs:
   remove-stale-lgtm:
     if: github.event.action == 'synchronize'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Remove lgtm label and disable auto-merge
         env:
@@ -163,6 +170,7 @@ jobs:
       github.event.action == 'labeled'
       && (github.event.label.name == 'lgtm' || github.event.label.name == 'approve')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout base branch (OWNERS only)
         uses: actions/checkout@v4
@@ -241,9 +249,10 @@ jobs:
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
             echo "🚀 Both labels present — submitting review + enabling auto-merge"
-            gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
-              --body "Auto-approved: lgtm + approve verified in OWNERS." \
-              2>/dev/null || echo "ℹ️  Review already submitted"
+            if ! REVIEW_ERR=$(gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
+              --body "Auto-approved: lgtm + approve verified in OWNERS." 2>&1); then
+              echo "⚠️  Review submission failed: $REVIEW_ERR"
+            fi
             gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO"
           else
             echo "⏳ Waiting for both lgtm + approve"
