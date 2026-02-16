@@ -40,14 +40,17 @@ jobs:
       && github.event.sender.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Remove lgtm label
+      - name: Remove lgtm label and disable auto-merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh pr edit "${{ github.event.pull_request.number }}" \
+          gh pr edit "$PR_NUMBER" \
             --remove-label lgtm \
             --repo "${{ github.repository }}" 2>/dev/null || true
-          echo "🔄 Removed lgtm — PR updated by ${{ github.event.sender.login }}"
+          gh pr merge "$PR_NUMBER" --disable-auto \
+            --repo "${{ github.repository }}" 2>/dev/null || true
+          echo "🔄 Removed lgtm + disabled auto-merge — PR updated by ${{ github.event.sender.login }}"
 
   # ── Validate label & auto-merge when both gates are met ────────────────
   handle-label:
