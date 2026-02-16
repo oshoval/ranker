@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import { productLogs } from '@/shared/storage/logs';
 import { requireAdminAuth } from '@/shared/utils/admin-auth';
+import { parseLogParams } from '@/shared/utils/parse-log-params';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,17 +14,12 @@ export function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const level = searchParams.get('level') as
-    | 'info'
-    | 'warn'
-    | 'error'
-    | undefined;
-  const limit = searchParams.get('limit')
-    ? parseInt(searchParams.get('limit')!, 10)
-    : undefined;
-  const since = searchParams.get('since') ?? undefined;
+  const params = parseLogParams(searchParams);
+  if (typeof params === 'string') {
+    return NextResponse.json({ error: params }, { status: 400 });
+  }
 
-  const result = productLogs.get({ level: level || undefined, limit, since });
+  const result = productLogs.get(params);
   return NextResponse.json(result);
 }
 
