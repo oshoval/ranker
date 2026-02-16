@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # CodeQL security analysis -- DISABLED for private repo.
 # Uncomment push/pull_request triggers when repo is public.
-# See GOING_PUBLIC.md
 
 name: CodeQL
 

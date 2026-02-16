@@ -14,7 +14,7 @@ import {
 
 const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql';
 const GITHUB_REST_BASE = 'https://api.github.com';
-const REQUEST_TIMEOUT_MS = 30_000; // [PT-Infra-01]
+const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUS_CODES = [502, 503, 504];
 
