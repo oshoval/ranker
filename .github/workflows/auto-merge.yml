@@ -129,7 +129,31 @@ jobs:
           else
             gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}" 2>/dev/null || true
             gh pr merge "$PR_NUMBER" --disable-auto --repo "${{ github.repository }}" 2>/dev/null || true
-            echo "✅ ${SENDER}: /${LABEL} cancel → label removed"
+            echo "✅ ${SENDER}: /${LABEL} cancel → label removed + auto-merge disabled"
+            exit 0
+          fi
+
+          # Labels added via GITHUB_TOKEN do not trigger new workflow
+          # runs, so check for both labels and handle merge here.
+          LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
+            --json labels --jq '.labels[].name')
+
+          HAS_LGTM=false
+          HAS_APPROVE=false
+          echo "$LABELS" | grep -qx "lgtm"    && HAS_LGTM=true
+          echo "$LABELS" | grep -qx "approve"  && HAS_APPROVE=true
+
+          echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
+
+          if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
+            echo "🚀 Both labels present — enabling auto-merge (squash)"
+            gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
+
+            echo "🔄 Updating PR branch to include latest base..."
+            gh api -X PUT "repos/${{ github.repository }}/pulls/${PR_NUMBER}/update-branch" \
+              2>/dev/null || echo "ℹ️  Branch already up-to-date"
+          else
+            echo "⏳ Waiting for both lgtm + approve"
           fi
 
   # ── Remove stale "lgtm" on external pushes (not our own rebase) ───────
