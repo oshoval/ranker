@@ -154,7 +154,13 @@ jobs:
               --body "Auto-approved: lgtm + approve verified in OWNERS." 2>&1); then
               echo "⚠️  Review submission failed: $REVIEW_ERR"
             fi
-            gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO"
+            if ! MERGE_ERR=$(gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO" 2>&1); then
+              echo "⚠️  Auto-merge could not be enabled: $MERGE_ERR"
+              if echo "$MERGE_ERR" | grep -qi "workflow"; then
+                gh pr comment "$PR_NUMBER" --repo "$REPO" \
+                  --body "⚠️ Auto-merge cannot be enabled automatically because this PR modifies workflow files. A maintainer must merge manually."
+              fi
+            fi
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
@@ -268,7 +274,13 @@ jobs:
               --body "Auto-approved: lgtm + approve verified in OWNERS." 2>&1); then
               echo "⚠️  Review submission failed: $REVIEW_ERR"
             fi
-            gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO"
+            if ! MERGE_ERR=$(gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO" 2>&1); then
+              echo "⚠️  Auto-merge could not be enabled: $MERGE_ERR"
+              if echo "$MERGE_ERR" | grep -qi "workflow"; then
+                gh pr comment "$PR_NUMBER" --repo "$REPO" \
+                  --body "⚠️ Auto-merge cannot be enabled automatically because this PR modifies workflow files. A maintainer must merge manually."
+              fi
+            fi
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
