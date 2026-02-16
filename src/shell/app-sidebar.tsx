@@ -213,7 +213,12 @@ export function AppSidebar({
         </SidebarButton>
         {!collapsed && (
           <div className="mt-2 space-y-0.5 px-3 py-1 text-xs text-muted-foreground">
-            <div>v0.1.0</div>
+            <div className="flex items-center gap-1.5">
+              v0.1.0
+              <Badge className="h-4 rounded px-1 py-0 text-[10px] font-medium leading-none">
+                beta
+              </Badge>
+            </div>
             <div>Local only</div>
           </div>
         )}
