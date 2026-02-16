@@ -75,22 +75,68 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        'flex flex-col border-r border-border bg-card text-card-foreground transition-[width] duration-200',
+        'relative z-50 flex flex-col border-r border-border bg-card text-card-foreground transition-[width] duration-200',
         collapsed ? 'w-14 min-w-14' : 'w-60 min-w-60'
       )}
     >
-      <div className="flex h-14 items-center justify-between border-b border-border px-3">
+      <div
+        className={cn(
+          'flex h-14 items-center border-b border-border',
+          collapsed ? 'justify-center px-1' : 'justify-between px-3'
+        )}
+      >
         {!collapsed && (
           <div className="flex items-center gap-2">
             <AnimatedBarChart className="h-6 w-6 text-primary" />
-            <span className="font-semibold">PRanker</span>
+            <div className="flex flex-col leading-tight">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold">PRanker</span>
+                <Badge className="h-4 rounded px-1 py-0 text-[10px] font-medium leading-none">
+                  beta
+                </Badge>
+              </div>
+              <span className="text-[10px] text-muted-foreground">v0.1.0</span>
+            </div>
           </div>
         )}
-        {collapsed && (
-          <div className="flex flex-1 justify-center">
-            <AnimatedBarChart className="h-6 w-6 text-primary" />
-          </div>
-        )}
+        <div className="flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Toggle theme"
+              >
+                {mounted && theme === 'dark' ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? 'right' : 'bottom'}>
+              Toggle theme
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleCollapse}
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {collapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? 'right' : 'bottom'}>
+              {collapsed ? 'Expand' : 'Collapse'}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2">
@@ -124,105 +170,59 @@ export function AppSidebar({
         })}
       </nav>
 
-      <div className="flex flex-col gap-1 border-t border-border p-2">
-        <SidebarButton label="Toggle theme" collapsed={collapsed}>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
-              collapsed ? 'justify-center px-2' : ''
-            )}
-            aria-label="Toggle theme"
-          >
-            {mounted && theme === 'dark' ? (
-              <Sun className="h-5 w-5 shrink-0" />
-            ) : (
-              <Moon className="h-5 w-5 shrink-0" />
-            )}
-            {!collapsed && <span>Toggle theme</span>}
-          </button>
-        </SidebarButton>
-        {onUserLogClick != null && (
-          <SidebarButton label="User error logs" collapsed={collapsed}>
-            <button
-              onClick={onUserLogClick}
-              className={cn(
-                'relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
-                collapsed ? 'justify-center px-2' : ''
-              )}
-              aria-label="User error logs"
-            >
-              <span className="relative">
-                <AlertCircle className="h-5 w-5 shrink-0" />
-                {userLogErrorCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -right-2 -top-2 h-4 min-w-4 px-1 text-[10px]"
-                  >
-                    {userLogErrorCount > 99 ? '99+' : userLogErrorCount}
-                  </Badge>
+      {!collapsed && (
+        <div className="mb-12 flex flex-col gap-1 border-t border-border p-2">
+          {onUserLogClick != null && (
+            <SidebarButton label="User error logs" collapsed={collapsed}>
+              <button
+                onClick={onUserLogClick}
+                className={cn(
+                  'relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
+                  collapsed ? 'justify-center px-2' : ''
                 )}
-              </span>
-              {!collapsed && (
-                <>
-                  <span>User logs</span>
+                aria-label="User error logs"
+              >
+                <span className="relative">
+                  <AlertCircle className="h-5 w-5 shrink-0" />
                   {userLogErrorCount > 0 && (
-                    <Badge variant="destructive" className="ml-auto">
+                    <Badge
+                      variant="destructive"
+                      className="absolute -right-2 -top-2 h-4 min-w-4 px-1 text-[10px]"
+                    >
                       {userLogErrorCount > 99 ? '99+' : userLogErrorCount}
                     </Badge>
                   )}
-                </>
-              )}
-            </button>
-          </SidebarButton>
-        )}
-        {onProductLogClick != null && (
-          <SidebarButton label="Product error logs" collapsed={collapsed}>
-            <button
-              onClick={onProductLogClick}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
-                collapsed ? 'justify-center px-2' : ''
-              )}
-              aria-label="Product error logs"
-            >
-              <Terminal className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>Product logs</span>}
-            </button>
-          </SidebarButton>
-        )}
-        <SidebarButton
-          label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          collapsed={collapsed}
-        >
-          <button
-            onClick={onToggleCollapse}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
-              collapsed ? 'justify-center px-2' : ''
-            )}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? (
-              <PanelLeftOpen className="h-5 w-5 shrink-0" />
-            ) : (
-              <PanelLeftClose className="h-5 w-5 shrink-0" />
-            )}
-            {!collapsed && <span>{collapsed ? 'Expand' : 'Collapse'}</span>}
-          </button>
-        </SidebarButton>
-        {!collapsed && (
-          <div className="mt-2 space-y-0.5 px-3 py-1 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              v0.1.0
-              <Badge className="h-4 rounded px-1 py-0 text-[10px] font-medium leading-none">
-                beta
-              </Badge>
-            </div>
-            <div>Local only</div>
-          </div>
-        )}
-      </div>
+                </span>
+                {!collapsed && (
+                  <>
+                    <span>User logs</span>
+                    {userLogErrorCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto">
+                        {userLogErrorCount > 99 ? '99+' : userLogErrorCount}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </button>
+            </SidebarButton>
+          )}
+          {onProductLogClick != null && (
+            <SidebarButton label="Product error logs" collapsed={collapsed}>
+              <button
+                onClick={onProductLogClick}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted',
+                  collapsed ? 'justify-center px-2' : ''
+                )}
+                aria-label="Product error logs"
+              >
+                <Terminal className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Product logs</span>}
+              </button>
+            </SidebarButton>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
