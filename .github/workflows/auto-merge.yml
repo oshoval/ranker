@@ -146,7 +146,14 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            echo "🚀 Both labels present — enabling auto-merge (squash)"
+            echo "🚀 Both labels present — submitting review + enabling auto-merge (squash)"
+
+            # Submit a GitHub review approval to satisfy branch protection
+            # "required approving reviews" rule.
+            gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
+              --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
+              2>/dev/null || echo "ℹ️  Review already submitted or not needed"
+
             gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
 
             echo "🔄 Updating PR branch to include latest base..."
@@ -255,7 +262,12 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            echo "🚀 Both labels present — enabling auto-merge (squash)"
+            echo "🚀 Both labels present — submitting review + enabling auto-merge (squash)"
+
+            gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
+              --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
+              2>/dev/null || echo "ℹ️  Review already submitted or not needed"
+
             gh pr merge "$PR_NUMBER" --auto --squash --repo "${{ github.repository }}"
 
             # Update the PR branch so CI runs against latest base.
