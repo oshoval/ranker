@@ -7,7 +7,7 @@
 #   2. "approve" label   — added via /approve by an approver listed in OWNERS
 #   3. All required CI status checks must pass
 #
-# Slash commands (in PR comments):
+# Slash commands (in PR comments, one per line, can combine in one comment):
 #   /lgtm            — adds lgtm label      (reviewers only)
 #   /lgtm cancel     — removes lgtm label   (reviewers only)
 #   /approve         — adds approve label    (approvers only)
@@ -71,54 +71,69 @@ jobs:
             exit 1
           fi
 
-          CMD=$(echo "$COMMENT" | head -1 | tr -d '\r')
-
-          case "$CMD" in
-            /lgtm)             ACTION="add";    LABEL="lgtm";    SECTION="reviewers"  ;;
-            "/lgtm cancel")    ACTION="remove"; LABEL="lgtm";    SECTION="reviewers"  ;;
-            /approve)          ACTION="add";    LABEL="approve"; SECTION="approvers" ;;
-            "/approve cancel") ACTION="remove"; LABEL="approve"; SECTION="approvers" ;;
-            *)
-              echo "ℹ️  Unrecognised command: $CMD"
-              exit 0
-              ;;
-          esac
-
-          # Check if sender is in the correct OWNERS section
-          IN_SECTION=false
-          AUTHORIZED=false
-          while IFS= read -r line; do
-            if echo "$line" | grep -qE '^[a-z_]+:'; then
-              if echo "$line" | grep -qE "^${SECTION}:"; then
-                IN_SECTION=true
-              else
-                IN_SECTION=false
+          # Helper: check if user is in an OWNERS section
+          check_owners() {
+            local section="$1"
+            local IN_SECTION=false
+            while IFS= read -r line; do
+              if echo "$line" | grep -qE '^[a-z_]+:'; then
+                if echo "$line" | grep -qE "^${section}:"; then
+                  IN_SECTION=true
+                else
+                  IN_SECTION=false
+                fi
+                continue
               fi
-              continue
-            fi
-            if [ "$IN_SECTION" = true ]; then
-              ENTRY=$(echo "$line" | sed -n 's/^[[:space:]]*-[[:space:]]*//p' | tr -d '[:space:]')
-              if [ "$ENTRY" = "$SENDER" ]; then
-                AUTHORIZED=true
-                break
+              if [ "$IN_SECTION" = true ]; then
+                local ENTRY
+                ENTRY=$(echo "$line" | sed -n 's/^[[:space:]]*-[[:space:]]*//p' | tr -d '[:space:]')
+                if [ "$ENTRY" = "$SENDER" ]; then
+                  return 0
+                fi
               fi
-            fi
-          done < OWNERS
+            done < OWNERS
+            return 1
+          }
 
-          if [ "$AUTHORIZED" != true ]; then
-            echo "⛔ ${SENDER} is not in ${SECTION}"
-            gh pr comment "$PR_NUMBER" --repo "$REPO" \
-              --body "⛔ @${SENDER} you are not listed in \`OWNERS\` \`${SECTION}\` — \`${CMD}\` ignored."
+          # Extract all slash commands (one per line, must start at ^)
+          CMDS=$(echo "$COMMENT" | tr -d '\r' | grep -E '^/(lgtm|approve)( cancel)?$' || true)
+
+          if [ -z "$CMDS" ]; then
+            echo "ℹ️  No recognised slash commands found"
             exit 0
           fi
 
-          if [ "$ACTION" = "add" ]; then
-            gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "$REPO"
-            echo "✅ ${SENDER}: /${LABEL} → label added"
-          else
-            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "$REPO" 2>/dev/null || true
-            gh pr merge "$PR_NUMBER" --disable-auto --repo "$REPO" 2>/dev/null || true
-            echo "✅ ${SENDER}: /${LABEL} cancel → label removed + auto-merge disabled"
+          CANCELLED=false
+
+          while IFS= read -r CMD; do
+            case "$CMD" in
+              /lgtm)             ACTION="add";    LABEL="lgtm";    SECTION="reviewers"  ;;
+              "/lgtm cancel")    ACTION="remove"; LABEL="lgtm";    SECTION="reviewers"  ;;
+              /approve)          ACTION="add";    LABEL="approve"; SECTION="approvers" ;;
+              "/approve cancel") ACTION="remove"; LABEL="approve"; SECTION="approvers" ;;
+              *) continue ;;
+            esac
+
+            if ! check_owners "$SECTION"; then
+              echo "⛔ ${SENDER} is not in ${SECTION}"
+              gh pr comment "$PR_NUMBER" --repo "$REPO" \
+                --body "⛔ @${SENDER} you are not listed in \`OWNERS\` \`${SECTION}\` — \`${CMD}\` ignored."
+              continue
+            fi
+
+            if [ "$ACTION" = "add" ]; then
+              gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "$REPO"
+              echo "✅ ${SENDER}: ${CMD} → label added"
+            else
+              gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "$REPO" 2>/dev/null || true
+              gh pr merge "$PR_NUMBER" --disable-auto --repo "$REPO" 2>/dev/null || true
+              echo "✅ ${SENDER}: ${CMD} → label removed + auto-merge disabled"
+              CANCELLED=true
+            fi
+          done <<< "$CMDS"
+
+          # If any cancel was processed, skip auto-merge check
+          if [ "$CANCELLED" = true ]; then
             exit 0
           fi
 
