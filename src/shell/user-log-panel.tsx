@@ -11,6 +11,13 @@ import { cn } from '@/lib/utils';
 
 const REFRESH_MS = 30_000;
 const LOG_API = '/api/logs/user';
+const TOKEN_KEY = 'pranker_admin_token';
+
+function getAuthHeaders(): HeadersInit | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
 
 export interface LogEntry {
   id: string;
@@ -41,7 +48,7 @@ export function UserLogPanel({
   const fetchLogs = useCallback(
     async (signal?: { cancelled: boolean }) => {
       try {
-        const res = await fetch(LOG_API);
+        const res = await fetch(LOG_API, { headers: getAuthHeaders() });
         if (res.ok && !signal?.cancelled) {
           const data = await res.json();
           setLogs(data.logs ?? []);
@@ -70,7 +77,10 @@ export function UserLogPanel({
 
   const handleClear = async () => {
     try {
-      const res = await fetch(LOG_API, { method: 'DELETE' });
+      const res = await fetch(LOG_API, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         setLogs([]);
         setTotal(0);

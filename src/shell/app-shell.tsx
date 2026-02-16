@@ -10,6 +10,7 @@ import { UserLogPanel } from '@/shell/user-log-panel';
 import { plugins } from '@/features/registry';
 
 const USER_LOG_POLL_MS = 30_000;
+const TOKEN_KEY = 'pranker_admin_token';
 
 export function AppShell() {
   const [activeSection, setActiveSection] = useState(plugins[0]?.id ?? '');
@@ -22,7 +23,11 @@ export function AppShell() {
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await fetch('/api/logs/user');
+        const token = sessionStorage.getItem(TOKEN_KEY);
+        const headers: HeadersInit | undefined = token
+          ? { Authorization: `Bearer ${token}` }
+          : undefined;
+        const res = await fetch('/api/logs/user', { headers });
         if (res.ok && !cancelled) {
           const data = await res.json();
           setUserLogErrorCount(data.total ?? 0);
