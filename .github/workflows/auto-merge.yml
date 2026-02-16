@@ -6,7 +6,6 @@
 #   1. "lgtm" label     — added via /lgtm by a reviewer  listed in OWNERS
 #   2. "approve" label   — added via /approve by an approver listed in OWNERS
 #   3. All required CI status checks must pass
-#   4. PR branch must be up-to-date with the base branch (strict mode)
 #
 # Slash commands (in PR comments):
 #   /lgtm            — adds lgtm label      (reviewers only)
@@ -14,22 +13,8 @@
 #   /approve         — adds approve label    (approvers only)
 #   /approve cancel  — removes approve label (approvers only)
 #
-# Merge pipeline:
-#   - When both labels are present the workflow enables auto-merge and
-#     updates the PR branch to include the latest base.
-#   - If the branch was already current → CI passes → merged.
-#   - If a rebase was needed → the workflow performs it automatically.
-#     Because the rebase is done by github-actions[bot] (no new code
-#     from the contributor), lgtm is preserved.  CI re-runs against
-#     the combined code, and if it passes the PR merges.
-#
-# Stale lgtm removal:
-#   - Human pushes or external bot updates (e.g. dependabot rebase)
-#     remove "lgtm" and disable auto-merge, requiring re-review.
-#   - Only the merge-pipeline rebase (github-actions[bot]) preserves
-#     lgtm, because it introduces no new contributor code.
-#
 # Safety:
+#   - Any push to a PR removes "lgtm" and disables auto-merge.
 #   - Labels added by users NOT in OWNERS are removed automatically.
 #   - Slash commands from unauthorized users are ignored with a comment.
 #   - OWNERS is always read from the BASE branch, never from the PR.
@@ -80,12 +65,11 @@ jobs:
             exit 1
           fi
 
-          # Parse the command
           CMD=$(echo "$COMMENT" | head -1 | tr -d '\r')
 
           case "$CMD" in
-            /lgtm)          ACTION="add";    LABEL="lgtm";    SECTION="reviewers"  ;;
-            "/lgtm cancel") ACTION="remove"; LABEL="lgtm";    SECTION="reviewers"  ;;
+            /lgtm)             ACTION="add";    LABEL="lgtm";    SECTION="reviewers"  ;;
+            "/lgtm cancel")    ACTION="remove"; LABEL="lgtm";    SECTION="reviewers"  ;;
             /approve)          ACTION="add";    LABEL="approve"; SECTION="approvers" ;;
             "/approve cancel") ACTION="remove"; LABEL="approve"; SECTION="approvers" ;;
             *)
@@ -122,7 +106,6 @@ jobs:
             exit 0
           fi
 
-          # Apply the label action
           if [ "$ACTION" = "add" ]; then
             gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "${{ github.repository }}"
             echo "✅ ${SENDER}: /${LABEL} → label added"
@@ -133,8 +116,7 @@ jobs:
             exit 0
           fi
 
-          # Labels added via GITHUB_TOKEN do not trigger new workflow
-          # runs, so check for both labels and handle merge here.
+          # Check if both labels are present and enable auto-merge
           LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
             --json labels --jq '.labels[].name')
 
@@ -146,28 +128,18 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            echo "🚀 Both labels present — submitting review + enabling auto-merge (merge commit)"
-
-            # Submit a GitHub review approval to satisfy branch protection
-            # "required approving reviews" rule.
+            echo "🚀 Both labels present — submitting review + enabling auto-merge"
             gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
-              --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
-              2>/dev/null || echo "ℹ️  Review already submitted or not needed"
-
+              --body "Auto-approved: lgtm + approve verified in OWNERS." \
+              2>/dev/null || echo "ℹ️  Review already submitted"
             gh pr merge "$PR_NUMBER" --auto --merge --repo "${{ github.repository }}"
-
-            echo "🔄 Updating PR branch to include latest base..."
-            gh api -X PUT "repos/${{ github.repository }}/pulls/${PR_NUMBER}/update-branch" \
-              2>/dev/null || echo "ℹ️  Branch already up-to-date"
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
 
-  # ── Remove stale "lgtm" on external pushes (not our own rebase) ───────
+  # ── Remove stale "lgtm" on any push ───────────────────────────────────
   remove-stale-lgtm:
-    if: >-
-      github.event.action == 'synchronize'
-      && github.event.sender.login != 'github-actions[bot]'
+    if: github.event.action == 'synchronize'
     runs-on: ubuntu-latest
     steps:
       - name: Remove lgtm label and disable auto-merge
@@ -182,7 +154,7 @@ jobs:
             --repo "${{ github.repository }}" 2>/dev/null || true
           echo "🔄 Removed lgtm + disabled auto-merge — PR updated by ${{ github.event.sender.login }}"
 
-  # ── Validate label & auto-merge when both gates are met ────────────────
+  # ── Guard labels added via GitHub UI ───────────────────────────────────
   handle-label:
     if: >-
       github.event.action == 'labeled'
@@ -245,7 +217,7 @@ jobs:
             gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}"
           fi
 
-      - name: Enable auto-merge and update branch if both labels present
+      - name: Enable auto-merge if both labels present
         if: env.validated == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -262,22 +234,11 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            echo "🚀 Both labels present — submitting review + enabling auto-merge (merge commit)"
-
+            echo "🚀 Both labels present — submitting review + enabling auto-merge"
             gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
-              --body "Auto-approved: lgtm + approve labels present, reviewer and approver verified in OWNERS." \
-              2>/dev/null || echo "ℹ️  Review already submitted or not needed"
-
+              --body "Auto-approved: lgtm + approve verified in OWNERS." \
+              2>/dev/null || echo "ℹ️  Review already submitted"
             gh pr merge "$PR_NUMBER" --auto --merge --repo "${{ github.repository }}"
-
-            # Update the PR branch so CI runs against latest base.
-            # If already up-to-date this is a no-op → merge proceeds.
-            # If a rebase is needed the synchronize event fires with
-            # sender=github-actions[bot] → lgtm is preserved → CI
-            # re-runs → auto-merge completes once green.
-            echo "🔄 Updating PR branch to include latest base..."
-            gh api -X PUT "repos/${{ github.repository }}/pulls/${PR_NUMBER}/update-branch" \
-              2>/dev/null || echo "ℹ️  Branch already up-to-date"
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
