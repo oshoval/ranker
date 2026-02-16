@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Gitleaks configuration — allowlist for known false positives.
+
+[allowlist]
+  description = "Known false positives: fake tokens in redaction tests"
+  paths = [
+    '''__tests__/shared/utils/logger\.test\.ts''',
+  ]

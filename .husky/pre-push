@@ -2,6 +2,15 @@
 
 echo "Running pre-push checks..."
 
+echo "→ Secret scan (gitleaks)"
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --verbose || exit 1
+elif [ -f "$HOME/.local/bin/gitleaks" ]; then
+  "$HOME/.local/bin/gitleaks" protect --staged --verbose || exit 1
+else
+  echo "⚠️  gitleaks not installed — skipping secret scan"
+fi
+
 echo "→ Lint"
 npm run lint || exit 1
 
