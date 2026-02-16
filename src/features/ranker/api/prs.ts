@@ -17,15 +17,34 @@ const MIN_LIMIT = 1;
 const MAX_LIMIT = 1000;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 10;
+const MAX_LABELS = 50;
+const MAX_LABELS_LENGTH = 2048;
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function getClientId(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
+  if (forwarded) {
+    const ip = forwarded.split(',')[0]?.trim() ?? 'unknown';
+    return ip.slice(0, 45);
+  }
   const realIp = request.headers.get('x-real-ip');
-  if (realIp) return realIp;
+  if (realIp) return realIp.slice(0, 45);
   return 'unknown';
+}
+
+const GLOBAL_RATE_LIMIT_MAX = 200;
+let globalRequestCount = 0;
+let globalResetAt = Date.now() + RATE_LIMIT_WINDOW_MS;
+
+function checkGlobalRateLimit(): boolean {
+  const now = Date.now();
+  if (now >= globalResetAt) {
+    globalRequestCount = 0;
+    globalResetAt = now + RATE_LIMIT_WINDOW_MS;
+  }
+  globalRequestCount++;
+  return globalRequestCount <= GLOBAL_RATE_LIMIT_MAX;
 }
 
 function checkRateLimit(clientId: string): boolean {
@@ -64,10 +83,12 @@ function parseBool(val: string | null): boolean {
 
 function parseLabels(val: string | null): string[] {
   if (!val || !val.trim()) return [];
+  if (val.length > MAX_LABELS_LENGTH) return [];
   return val
     .split(',')
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, MAX_LABELS);
 }
 
 function parseFilterConfig(searchParams: URLSearchParams): FilterConfig {
@@ -123,6 +144,13 @@ function parseLimit(val: string | null): number {
 }
 
 export async function handleGetPRs(request: Request): Promise<Response> {
+  if (!checkGlobalRateLimit()) {
+    return new Response(JSON.stringify({ error: 'Too many requests' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const clientId = getClientId(request);
 
   if (!checkRateLimit(clientId)) {
