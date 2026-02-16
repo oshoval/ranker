@@ -18,8 +18,8 @@
 #   - Labels added by users NOT in OWNERS are removed automatically.
 #   - Slash commands from unauthorized users are ignored with a comment.
 #   - OWNERS is always read from the BASE branch, never from the PR.
-#   - PRs that modify .github/workflows/ are never auto-merged —
-#     a maintainer must merge manually after review.
+#   - PRs that modify .github/workflows/, OWNERS, or OWNERS_ALIASES
+#     are never auto-merged — a maintainer must merge manually.
 #   - Uses pull_request_target / issue_comment so the workflow has
 #     write access for fork PRs while never executing PR code.
 
@@ -151,14 +151,18 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            # Block auto-merge for PRs that touch workflow files
-            TOUCHES_WORKFLOWS=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
-              --json files --jq '[.files[].path | select(startswith(".github/workflows/"))] | length')
+            # Block auto-merge for PRs that touch sensitive files
+            SENSITIVE=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+              --json files --jq '[.files[].path | select(
+                startswith(".github/workflows/") or
+                . == "OWNERS" or
+                . == "OWNERS_ALIASES"
+              )] | join(", ")')
 
-            if [ "$TOUCHES_WORKFLOWS" -gt 0 ]; then
-              echo "🛑 PR modifies .github/workflows/ — auto-merge blocked for safety"
+            if [ -n "$SENSITIVE" ]; then
+              echo "🛑 PR modifies sensitive files: $SENSITIVE — auto-merge blocked"
               gh pr comment "$PR_NUMBER" --repo "$REPO" \
-                --body "🛑 This PR modifies workflow files (\`.github/workflows/\`). Auto-merge is **blocked** for safety. A maintainer must merge manually after review."
+                --body "🛑 This PR modifies sensitive files (\`$SENSITIVE\`). Auto-merge is **blocked** for safety. A maintainer must merge manually after review."
               exit 0
             fi
 
@@ -278,14 +282,18 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
-            # Block auto-merge for PRs that touch workflow files
-            TOUCHES_WORKFLOWS=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
-              --json files --jq '[.files[].path | select(startswith(".github/workflows/"))] | length')
+            # Block auto-merge for PRs that touch sensitive files
+            SENSITIVE=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+              --json files --jq '[.files[].path | select(
+                startswith(".github/workflows/") or
+                . == "OWNERS" or
+                . == "OWNERS_ALIASES"
+              )] | join(", ")')
 
-            if [ "$TOUCHES_WORKFLOWS" -gt 0 ]; then
-              echo "🛑 PR modifies .github/workflows/ — auto-merge blocked for safety"
+            if [ -n "$SENSITIVE" ]; then
+              echo "🛑 PR modifies sensitive files: $SENSITIVE — auto-merge blocked"
               gh pr comment "$PR_NUMBER" --repo "$REPO" \
-                --body "🛑 This PR modifies workflow files (\`.github/workflows/\`). Auto-merge is **blocked** for safety. A maintainer must merge manually after review."
+                --body "🛑 This PR modifies sensitive files (\`$SENSITIVE\`). Auto-merge is **blocked** for safety. A maintainer must merge manually after review."
               exit 0
             fi
 
