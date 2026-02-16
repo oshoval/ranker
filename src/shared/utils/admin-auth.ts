@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Red Hat, Inc.
 
+import { timingSafeEqual } from 'crypto';
+
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 /**
  * Check admin authentication for protected endpoints.
  * Returns true if auth is not enabled OR token is valid.
@@ -17,5 +27,5 @@ export function requireAdminAuth(request: Request): boolean {
   if (!authHeader) return false;
 
   const token = authHeader.replace(/^Bearer\s+/i, '');
-  return token === adminToken;
+  return safeEqual(token, adminToken);
 }
