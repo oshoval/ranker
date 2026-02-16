@@ -59,6 +59,7 @@ jobs:
           COMMENT: ${{ github.event.comment.body }}
           SENDER: ${{ github.event.comment.user.login }}
           PR_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
         run: |
           if [ ! -f OWNERS ]; then
             echo "::error::OWNERS file not found"
@@ -101,23 +102,23 @@ jobs:
 
           if [ "$AUTHORIZED" != true ]; then
             echo "⛔ ${SENDER} is not in ${SECTION}"
-            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" \
+            gh pr comment "$PR_NUMBER" --repo "$REPO" \
               --body "⛔ @${SENDER} you are not listed in \`OWNERS\` \`${SECTION}\` — \`${CMD}\` ignored."
             exit 0
           fi
 
           if [ "$ACTION" = "add" ]; then
-            gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "${{ github.repository }}"
+            gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo "$REPO"
             echo "✅ ${SENDER}: /${LABEL} → label added"
           else
-            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}" 2>/dev/null || true
-            gh pr merge "$PR_NUMBER" --disable-auto --repo "${{ github.repository }}" 2>/dev/null || true
+            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "$REPO" 2>/dev/null || true
+            gh pr merge "$PR_NUMBER" --disable-auto --repo "$REPO" 2>/dev/null || true
             echo "✅ ${SENDER}: /${LABEL} cancel → label removed + auto-merge disabled"
             exit 0
           fi
 
           # Check if both labels are present and enable auto-merge
-          LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
+          LABELS=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
             --json labels --jq '.labels[].name')
 
           HAS_LGTM=false
@@ -129,10 +130,10 @@ jobs:
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
             echo "🚀 Both labels present — submitting review + enabling auto-merge"
-            gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
+            gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
               --body "Auto-approved: lgtm + approve verified in OWNERS." \
               2>/dev/null || echo "ℹ️  Review already submitted"
-            gh pr merge "$PR_NUMBER" --auto --merge --repo "${{ github.repository }}"
+            gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO"
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
@@ -146,13 +147,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SENDER: ${{ github.event.sender.login }}
         run: |
           gh pr edit "$PR_NUMBER" \
             --remove-label lgtm \
-            --repo "${{ github.repository }}" 2>/dev/null || true
+            --repo "$REPO" 2>/dev/null || true
           gh pr merge "$PR_NUMBER" --disable-auto \
-            --repo "${{ github.repository }}" 2>/dev/null || true
-          echo "🔄 Removed lgtm + disabled auto-merge — PR updated by ${{ github.event.sender.login }}"
+            --repo "$REPO" 2>/dev/null || true
+          echo "🔄 Removed lgtm + disabled auto-merge — PR updated by ${SENDER}"
 
   # ── Guard labels added via GitHub UI ───────────────────────────────────
   handle-label:
@@ -171,11 +174,13 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Validate labeler is in OWNERS
+        id: validate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SENDER: ${{ github.event.sender.login }}
           LABEL: ${{ github.event.label.name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           if [ ! -f OWNERS ]; then
             echo "::error::OWNERS file not found on base branch"
@@ -209,21 +214,22 @@ jobs:
           done < OWNERS
 
           if [ "$AUTHORIZED" = true ]; then
-            echo "validated=true" >> "$GITHUB_ENV"
+            echo "result=true" >> "$GITHUB_OUTPUT"
             echo "✅ ${SENDER} is an authorized ${SECTION%s} — '${LABEL}' label accepted"
           else
-            echo "validated=false" >> "$GITHUB_ENV"
+            echo "result=false" >> "$GITHUB_OUTPUT"
             echo "⛔ ${SENDER} is NOT in ${SECTION} — removing '${LABEL}' label"
-            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "${{ github.repository }}"
+            gh pr edit "$PR_NUMBER" --remove-label "$LABEL" --repo "$REPO"
           fi
 
       - name: Enable auto-merge if both labels present
-        if: env.validated == 'true'
+        if: steps.validate.outputs.result == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
-          LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
+          LABELS=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
             --json labels --jq '.labels[].name')
 
           HAS_LGTM=false
@@ -235,10 +241,10 @@ jobs:
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
             echo "🚀 Both labels present — submitting review + enabling auto-merge"
-            gh pr review "$PR_NUMBER" --approve --repo "${{ github.repository }}" \
+            gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
               --body "Auto-approved: lgtm + approve verified in OWNERS." \
               2>/dev/null || echo "ℹ️  Review already submitted"
-            gh pr merge "$PR_NUMBER" --auto --merge --repo "${{ github.repository }}"
+            gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO"
           else
             echo "⏳ Waiting for both lgtm + approve"
           fi
