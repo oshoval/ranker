@@ -5,10 +5,13 @@ import { timingSafeEqual } from 'crypto';
 
 /**
  * Constant-time string comparison to prevent timing attacks.
+ * Compares buffer byte lengths to handle multi-byte (Unicode) characters.
  */
 function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  const bufA = Buffer.from(a, 'utf-8');
+  const bufB = Buffer.from(b, 'utf-8');
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
 }
 
 /**
