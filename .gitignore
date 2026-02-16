@@ -45,6 +45,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Local-only scripts (never committed)
+local_scripts/
+
 # Misc
 *.tsbuildinfo
 next-env.d.ts
