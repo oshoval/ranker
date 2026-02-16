@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Red Hat, Inc.
 
-import { logger } from '@/shared/utils/logger';
+import { logger, redact } from '@/shared/utils/logger';
 
 export interface LogEntry {
   id: string;
@@ -32,6 +32,8 @@ class LogStore {
   append(entry: Omit<LogEntry, 'id' | 'timestamp' | 'category'>): LogEntry {
     const full: LogEntry = {
       ...entry,
+      message: redact(entry.message),
+      details: entry.details ? redact(entry.details) : undefined,
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
       category: this.category,
