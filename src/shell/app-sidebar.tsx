@@ -95,7 +95,9 @@ export function AppSidebar({
                   beta
                 </Badge>
               </div>
-              <span className="text-[10px] text-muted-foreground">v0.1.0</span>
+              <span className="text-[10px] text-muted-foreground">
+                {process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev'}
+              </span>
             </div>
           </div>
         )}
