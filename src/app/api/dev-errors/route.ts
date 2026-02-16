@@ -62,15 +62,12 @@ export async function POST(req: NextRequest) {
 
   // POST is always open — comes from the client-side capture component
   try {
-    const contentLength = parseInt(
-      req.headers.get('content-length') ?? '0',
-      10
-    );
-    if (contentLength > MAX_PAYLOAD_BYTES) {
+    const raw = await req.text();
+    if (raw.length > MAX_PAYLOAD_BYTES) {
       return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
     }
 
-    const body = await req.json();
+    const body = JSON.parse(raw);
 
     const truncate = (val: string) => val.slice(0, MAX_FIELD_LENGTH);
 
