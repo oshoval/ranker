@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Auto-merge PRs when the "lgtm" label is added.
+# CI must still pass before GitHub performs the actual merge.
+
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.label.name == 'lgtm'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge ${{ github.event.pull_request.number }} --auto --squash --repo ${{ github.repository }}
