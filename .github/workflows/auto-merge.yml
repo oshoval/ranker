@@ -18,6 +18,8 @@
 #   - Labels added by users NOT in OWNERS are removed automatically.
 #   - Slash commands from unauthorized users are ignored with a comment.
 #   - OWNERS is always read from the BASE branch, never from the PR.
+#   - PRs that modify .github/workflows/ are never auto-merged —
+#     a maintainer must merge manually after review.
 #   - Uses pull_request_target / issue_comment so the workflow has
 #     write access for fork PRs while never executing PR code.
 
@@ -149,6 +151,17 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
+            # Block auto-merge for PRs that touch workflow files
+            TOUCHES_WORKFLOWS=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+              --json files --jq '[.files[].path | select(startswith(".github/workflows/"))] | length')
+
+            if [ "$TOUCHES_WORKFLOWS" -gt 0 ]; then
+              echo "🛑 PR modifies .github/workflows/ — auto-merge blocked for safety"
+              gh pr comment "$PR_NUMBER" --repo "$REPO" \
+                --body "🛑 This PR modifies workflow files (\`.github/workflows/\`). Auto-merge is **blocked** for safety. A maintainer must merge manually after review."
+              exit 0
+            fi
+
             echo "🚀 Both labels present — submitting review + enabling auto-merge"
             if ! REVIEW_ERR=$(gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
               --body "Auto-approved: lgtm + approve verified in OWNERS." 2>&1); then
@@ -156,10 +169,6 @@ jobs:
             fi
             if ! MERGE_ERR=$(gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO" 2>&1); then
               echo "⚠️  Auto-merge could not be enabled: $MERGE_ERR"
-              if echo "$MERGE_ERR" | grep -qi "workflow"; then
-                gh pr comment "$PR_NUMBER" --repo "$REPO" \
-                  --body "⚠️ Auto-merge cannot be enabled automatically because this PR modifies workflow files. A maintainer must merge manually."
-              fi
             fi
           else
             echo "⏳ Waiting for both lgtm + approve"
@@ -269,6 +278,17 @@ jobs:
           echo "lgtm=$HAS_LGTM  approve=$HAS_APPROVE"
 
           if [ "$HAS_LGTM" = true ] && [ "$HAS_APPROVE" = true ]; then
+            # Block auto-merge for PRs that touch workflow files
+            TOUCHES_WORKFLOWS=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+              --json files --jq '[.files[].path | select(startswith(".github/workflows/"))] | length')
+
+            if [ "$TOUCHES_WORKFLOWS" -gt 0 ]; then
+              echo "🛑 PR modifies .github/workflows/ — auto-merge blocked for safety"
+              gh pr comment "$PR_NUMBER" --repo "$REPO" \
+                --body "🛑 This PR modifies workflow files (\`.github/workflows/\`). Auto-merge is **blocked** for safety. A maintainer must merge manually after review."
+              exit 0
+            fi
+
             echo "🚀 Both labels present — submitting review + enabling auto-merge"
             if ! REVIEW_ERR=$(gh pr review "$PR_NUMBER" --approve --repo "$REPO" \
               --body "Auto-approved: lgtm + approve verified in OWNERS." 2>&1); then
@@ -276,10 +296,6 @@ jobs:
             fi
             if ! MERGE_ERR=$(gh pr merge "$PR_NUMBER" --auto --merge --repo "$REPO" 2>&1); then
               echo "⚠️  Auto-merge could not be enabled: $MERGE_ERR"
-              if echo "$MERGE_ERR" | grep -qi "workflow"; then
-                gh pr comment "$PR_NUMBER" --repo "$REPO" \
-                  --body "⚠️ Auto-merge cannot be enabled automatically because this PR modifies workflow files. A maintainer must merge manually."
-              fi
             fi
           else
             echo "⏳ Waiting for both lgtm + approve"
