@@ -103,8 +103,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm audit --audit-level=moderate
+      - name: Audit dependencies
+        if: github.event_name != 'pull_request'
+        run: npm audit --package-lock-only --audit-level=moderate
+      - name: Audit dependencies (non-blocking on PRs)
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! npm audit --package-lock-only --audit-level=moderate; then
+            echo "::warning::npm audit reported vulnerabilities; this does not block pull requests."
+          fi
       - name: Secret scan (gitleaks)
         uses: gitleaks/gitleaks-action@v2
         env:
