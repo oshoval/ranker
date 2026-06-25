@@ -79,6 +79,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Work around broken Azure CLI apt source on GitHub runners
+        run: |
+          if [ -f /etc/apt/sources.list.d/azure-cli.list ]; then
+            sudo rm -f /etc/apt/sources.list.d/azure-cli.list
+          fi
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run E2E tests
